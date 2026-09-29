@@ -27,7 +27,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bh1750.h"
-#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,20 +77,13 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(int ch) {
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-  return ch;
-}
-
 static EstadoID init(Contexto *ctx) {
-  printf("Estado: INIT\r\n");
   return AGUARDANDO;
 }
 
 static EstadoID aguardando(Contexto *ctx) {
   if (g_buttonFlag) {
     g_buttonFlag = 0;
-    printf("LED ligado - 10s\r\n");
     ctx->manualCountdown = MANUAL_TIMEOUT_TICKS;
     return MANUAL;
   }
@@ -99,7 +91,6 @@ static EstadoID aguardando(Contexto *ctx) {
     g_timerFlag = 0;
     return MEDIR;
   }
-  __WFI(); // dorme ate a proxima interrupcao (timer ou botao)
   return AGUARDANDO;
 }
 
@@ -113,9 +104,6 @@ static EstadoID medir(Contexto *ctx) {
   lux_minima = LUZ_MIN + (potenciometro / 4095.0f) * (LUZ_MAX - LUZ_MIN);
 
   HAL_StatusTypeDef st_read = BH1750_ReadLux(&hi2c1, &lux);
-  printf(
-      "Luz: %.2f Minímo: %.1f \r\n",
-      lux, lux_minima);
   if (st_read != HAL_OK) {
     return ERRO;
   }
@@ -137,7 +125,6 @@ static EstadoID manual(Contexto *ctx) {
   HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_SET);
   if (g_buttonFlag) {
     g_buttonFlag = 0;
-    printf("LED desligado - botão\r\n");
     HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
     return AGUARDANDO;
   }
@@ -145,18 +132,15 @@ static EstadoID manual(Contexto *ctx) {
     g_timerFlag = 0;
     ctx->manualCountdown--;
     if (ctx->manualCountdown == 0) {
-      printf("LED desligado - 10s\r\n");
       HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
       return AGUARDANDO;
     }
     return MANUAL;
   }
-  __WFI();
   return MANUAL;
 }
 
 static EstadoID erro(Contexto *ctx) {
-  printf("Erro na leitura do sensor\r\n");
   HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
   return AGUARDANDO;
 }
@@ -196,7 +180,6 @@ int main(void) {
   MX_TIM6_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  printf("Boot OK\r\n");
   HAL_StatusTypeDef st_power = BH1750_PowerOn(&hi2c1);
   HAL_StatusTypeDef st_mode = BH1750_SetMode(&hi2c1, BH1750_MODE_CONTINUOUS_H_RES);
   HAL_Delay(180); // primeira conversão

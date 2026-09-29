@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Luz Automática com STM32F334</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  --bg:#F5F7F4; --surface:#FFFFFF; --code-bg:#ECF0EC; --ink:#18211D; --muted:#56635C; --line:#D5DDD7;
+  --accent:#0B6B55; --accent-soft:#DDEEE7; --amber:#8F5500; --amber-soft:#F7EBD6; --warn:#A3361F; --warn-soft:#F8E3DD;
+  --comment:#6B7A72;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,"Courier New",monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101513; --surface:#161D1A; --code-bg:#1C2522; --ink:#E1E8E4; --muted:#97A69E; --line:#2A3531;
+    --accent:#4CC5A0; --accent-soft:#16352C; --amber:#E0A64A; --amber-soft:#3A2B12; --warn:#F08A70; --warn-soft:#3C1D16;
+    --comment:#809088; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101513; --surface:#161D1A; --code-bg:#1C2522; --ink:#E1E8E4; --muted:#97A69E; --line:#2A3531;
+  --accent:#4CC5A0; --accent-soft:#16352C; --amber:#E0A64A; --amber-soft:#3A2B12; --warn:#F08A70; --warn-soft:#3C1D16;
+  --comment:#809088; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;padding-inline:16px}
+a{color:var(--accent)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.shell{max-width:1260px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:2.5rem;padding-block:2.5rem 5rem}
+@media (min-width:1150px){.shell{grid-template-columns:230px minmax(0,1fr)}}
+
+/* sumário */
+nav.toc{font-size:.9rem}
+nav.toc details{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:.6rem .9rem}
+nav.toc summary{cursor:pointer;font-family:var(--f-display);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:.8rem;color:var(--muted)}
+nav.toc ol{margin:.6rem 0 0;padding-left:1.4rem;display:grid;gap:.15rem}
+nav.toc a{color:var(--ink);text-decoration:none}
+nav.toc a:hover{color:var(--accent);text-decoration:underline}
+@media (min-width:1150px){
+  nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 1.5rem);align-self:start;max-height:calc(100vh - 3rem);overflow:auto}
+  nav.toc details{border:0;background:none;padding:0}
+  nav.toc summary{pointer-events:none;list-style:none}
+  nav.toc summary::-webkit-details-marker{display:none}
+}
+
+/* tipografia */
+main{min-width:0}
+h1,h2,h3,h4{font-family:var(--f-display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(2rem,4.5vw,3rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.75rem;font-weight:700;margin-top:3.5rem;padding-top:1.2rem;border-top:2px solid var(--ink);display:flex;gap:.7rem;align-items:baseline}
+h2 .n{font-family:var(--f-mono);font-size:1rem;font-weight:500;color:var(--accent)}
+h3{font-size:1.25rem;font-weight:600;margin-top:2rem}
+h4{font-size:1rem;font-weight:600;margin-top:1.4rem}
+p,ul,ol{max-width:70ch}
+p{margin:.8rem 0}
+ul,ol{padding-left:1.3rem}
+li{margin:.25rem 0}
+code{font-family:var(--f-mono);font-size:.88em}
+p code,li code,td code,.note code{background:var(--code-bg);padding:.05em .3em;border-radius:3px}
+.eyebrow{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;font-size:.8rem;font-weight:600;color:var(--accent);margin:0 0 .6rem}
+.lede{font-size:1.15rem;color:var(--ink);max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;font-size:.88rem;color:var(--muted);margin-top:1rem;font-family:var(--f-mono)}
+
+/* etiquetas de origem */
+.tag{display:inline-block;font-family:var(--f-display);font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.1rem .45rem;border-radius:3px;vertical-align:middle;white-space:nowrap}
+.tag.gen{background:var(--accent-soft);color:var(--accent)}
+.tag.hand{background:var(--amber-soft);color:var(--amber)}
+.tag.mix{background:var(--code-bg);color:var(--muted)}
+
+/* blocos */
+pre{margin:0;font-family:var(--f-mono);font-size:.84rem;line-height:1.5;overflow-x:auto}
+.block{background:var(--code-bg);border-radius:6px;padding:.9rem 1rem;margin:1rem 0;max-width:100%}
+.c{color:var(--comment);font-style:italic}
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.8rem 1rem;margin:1.2rem 0;max-width:78ch;border-radius:0 6px 6px 0}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.hand{border-left-color:var(--amber);background:var(--amber-soft)}
+.note p{margin:.3rem 0}
+.note strong:first-child{font-family:var(--f-display);letter-spacing:.02em}
+.ref{font-size:.82rem;line-height:1.5;color:var(--muted);margin-top:.35rem!important;display:flex;flex-wrap:wrap;gap:.2rem .5rem;align-items:baseline}
+.ref-k{font-family:var(--f-display);font-weight:600;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;background:var(--amber-soft);color:var(--amber);padding:.05rem .4rem;border-radius:3px}
+.ref a{color:var(--accent)}
+
+/* tabelas */
+.tbl{overflow-x:auto;margin:1rem 0;max-width:100%}
+table{border-collapse:collapse;font-size:.92rem;min-width:520px;width:100%}
+th,td{text-align:left;padding:.45rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-display);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--line)}
+td.num{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:.86rem;white-space:nowrap}
+
+/* passo a passo */
+.steps{list-style:none;padding:0;margin:1.2rem 0;display:grid;gap:1rem;max-width:none}
+.steps>li{display:grid;grid-template-columns:2.2rem minmax(0,1fr);gap:.2rem .8rem;margin:0}
+.steps>li::before{content:counter(list-item);font-family:var(--f-mono);font-weight:500;color:var(--surface);background:var(--accent);width:1.8rem;height:1.8rem;border-radius:50%;display:grid;place-items:center;font-size:.85rem;margin-top:.1rem}
+.steps>li>div>p:first-child{margin-top:0}
+.steps h4{margin:0 0 .2rem;font-size:1.05rem}
+
+/* linha a linha */
+.walk{margin:1rem 0 1.6rem;border-bottom:1px solid var(--line)}
+.walk-head{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;padding:.5rem .8rem;font-family:var(--f-mono);font-size:.85rem}
+.r{display:grid;grid-template-columns:3.4rem minmax(0,1.15fr) minmax(0,1fr);gap:.4rem 1.1rem;border-top:1px solid var(--line);padding:.7rem 0;align-items:start}
+.r .ln{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:.45rem;text-align:right}
+.r pre{background:var(--code-bg);border-radius:4px;padding:.45rem .65rem}
+.r>div{font-size:.94rem;line-height:1.55}
+.r>div p{margin:.1rem 0 .5rem;max-width:none}
+.r>div p:last-child{margin-bottom:0}
+@media (max-width:780px){
+  .r{grid-template-columns:2.6rem minmax(0,1fr)}
+  .r>div{grid-column:2}
+}
+
+/* diagrama */
+.fig{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1rem;margin:1.2rem 0}
+.fig svg{display:block;min-width:660px;width:100%;height:auto;font-family:var(--f-mono)}
+.fig .box{fill:var(--bg);stroke:var(--ink);stroke-width:1.4}
+.fig .box.hi{fill:var(--accent-soft);stroke:var(--accent)}
+.fig .lbl{fill:var(--ink);font-size:13px;font-weight:500}
+.fig .edge{fill:none;stroke:var(--muted);stroke-width:1.4}
+.fig .edge.dash{stroke-dasharray:5 4}
+.fig .ah{fill:var(--muted)}
+.fig .et{fill:var(--muted);font-size:11px}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.6rem}
+
+/* linha do tempo */
+.timeline{list-style:none;padding:0;margin:1rem 0;max-width:none;border-left:2px solid var(--line)}
+.timeline li{position:relative;padding:.1rem 0 .9rem 1.2rem;margin:0;display:grid;grid-template-columns:6.5rem minmax(0,1fr);gap:.2rem 1rem}
+.timeline li::before{content:"";position:absolute;left:-6px;top:.55rem;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.timeline .t{font-family:var(--f-mono);font-size:.84rem;color:var(--accent);font-variant-numeric:tabular-nums;padding-top:.1rem}
+@media (max-width:560px){.timeline li{grid-template-columns:minmax(0,1fr)}}
+
+.files{font-family:var(--f-mono);font-size:.84rem;line-height:1.7}
+.files .d{color:var(--muted)}
+footer{margin-top:4rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="toc" aria-label="Sumário">
+  <details open>
+    <summary>Sumário</summary>
+    <ol>
+      <li><a href="#visao">Visão geral</a></li>
+      <li><a href="#hardware">Hardware e ligações</a></li>
+      <li><a href="#cubemx">Criando o projeto no STM32CubeMX</a></li>
+      <li><a href="#vscode">Compilando no VS Code</a></li>
+      <li><a href="#arquivos">Estrutura de arquivos</a></li>
+      <li><a href="#reset">Do reset até o main()</a></li>
+      <li><a href="#main">main.c linha a linha</a></li>
+      <li><a href="#fsm">A máquina de estados</a></li>
+      <li><a href="#bh1750">Driver do BH1750</a></li>
+      <li><a href="#adc">ADC1 e potenciômetro</a></li>
+      <li><a href="#tim">Timer TIM6</a></li>
+      <li><a href="#i2c">I2C1</a></li>
+      <li><a href="#uart">USART2</a></li>
+      <li><a href="#gpio">GPIO e botão</a></li>
+      <li><a href="#irq">Interrupções</a></li>
+      <li><a href="#execucao">Uma execução completa</a></li>
+      <li><a href="#atencao">Pontos de atenção</a></li>
+    </ol>
+  </details>
+</nav>
+
+<main>
+<header>
+  <p class="eyebrow">Sistemas Embarcados · UNISINOS · Trabalho GA</p>
+  <h1>Luz automática com STM32F334 e sensor BH1750</h1>
+  <p class="lede">Este documento explica, passo a passo, como o projeto <code>trabalhoGA</code> foi construído: da criação no STM32CubeMX até cada linha do código em C que lê a luminosidade ambiente e decide se um LED deve acender.</p>
+  <div class="meta">
+    <span>Placa: NUCLEO-F334R8</span>
+    <span>MCU: STM32F334R8T6 (Cortex-M4F, 64 MHz)</span>
+    <span>CubeMX 6.18.1 · FW_F3 V1.11.6</span>
+    <span>Build: CMake + Ninja + arm-none-eabi-gcc</span>
+  </div>
+  <p style="margin-top:1.2rem">Ao longo do texto, cada arquivo leva uma etiqueta que diz de onde ele veio:
+  <span class="tag gen">Gerado pelo CubeMX</span> para código criado automaticamente pela ferramenta,
+  <span class="tag hand">Escrito à mão</span> para código do aluno, e
+  <span class="tag mix">Misto</span> quando o arquivo gerado recebeu trechos manuais.</p>
+</header>
+
+<!-- ============================================================ -->
+<h2 id="visao"><span class="n">01</span>Visão geral</h2>
+<p>O sistema controla um LED externo de acordo com a luz do ambiente. A cada 200 ms o microcontrolador:</p>
+<ol>
+  <li>lê um potenciômetro pelo ADC e transforma essa leitura em um <strong>limiar mínimo de luz</strong>, entre 10 e 500 lux;</li>
+  <li>lê a luminosidade real do sensor <strong>BH1750</strong> pelo barramento I²C;</li>
+  <li>se a luz medida for menor que o limiar, <strong>acende</strong> o LED; caso contrário, <strong>apaga</strong>.</li>
+</ol>
+<p>O firmware não envia mensagens para o computador. Os valores medidos podem ser acompanhados pelo depurador, nas variáveis globais <code>lux</code> e <code>lux_minima</code>.</p>
+<p>O botão azul da placa (B1) coloca o sistema em <strong>modo manual</strong>: o LED fica aceso por 10 segundos, ignorando o sensor. Apertar o botão de novo durante esse tempo desliga o LED e volta ao modo automático.</p>
+<p>O programa é organizado como uma <strong>máquina de estados finitos</strong> implementada com uma tabela de ponteiros para função. As interrupções (timer e botão) só levantam <em>flags</em>; toda a lógica roda no laço principal, que confere essas flags continuamente.</p>
+
+<!-- ============================================================ -->
+<h2 id="hardware"><span class="n">02</span>Hardware e ligações</h2>
+<p>Os pinos abaixo foram tirados do código-fonte (<code>main.h</code>, <code>gpio.c</code>, <code>i2c.c</code>, <code>adc.c</code>, <code>usart.c</code>). A coluna "Conector Nucleo" indica onde o pino aparece nos conectores estilo Arduino da placa.</p>
+<div class="tbl">
+<table>
+  <thead><tr><th>Função</th><th>Pino MCU</th><th>Conector Nucleo</th><th>Periférico / modo</th></tr></thead>
+  <tbody>
+    <tr><td>BH1750 SCL</td><td class="num">PB8</td><td class="num">D15</td><td>I2C1_SCL, função alternativa AF4, open-drain</td></tr>
+    <tr><td>BH1750 SDA</td><td class="num">PB9</td><td class="num">D14</td><td>I2C1_SDA, AF4, open-drain</td></tr>
+    <tr><td>Potenciômetro (cursor)</td><td class="num">PA0</td><td class="num">A0</td><td>ADC1, canal 1, modo analógico</td></tr>
+    <tr><td>LED externo</td><td class="num">PC7</td><td class="num">D9</td><td>Saída push-pull</td></tr>
+    <tr><td>Botão B1 (azul)</td><td class="num">PC13</td><td class="num">na placa</td><td>Entrada com interrupção na borda de descida (EXTI13)</td></tr>
+    <tr><td>Serial TX / RX</td><td class="num">PA2 / PA3</td><td class="num">via ST-LINK</td><td>USART2, AF7, porta COM virtual do ST-LINK. Configurada pelo CubeMX, não usada pela aplicação</td></tr>
+    <tr><td>LED LD2 (verde)</td><td class="num">PA5</td><td class="num">D13</td><td>Saída configurada pelo CubeMX, não usada pela aplicação</td></tr>
+    <tr><td>Depuração</td><td class="num">PA13 / PA14 / PB3</td><td class="num">via ST-LINK</td><td>SWDIO, SWCLK e SWO</td></tr>
+  </tbody>
+</table>
+</div>
+<p>O BH1750 é alimentado com 3,3 V e tem o pino ADDR ligado ao GND, o que fixa o endereço I²C em <code>0x23</code> (<a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">datasheet, p. 10</a>). Os módulos comerciais do sensor (como o GY-302) normalmente já trazem resistores de pull-up no SDA e no SCL, por isso o código configura os pinos sem pull-up interno. O potenciômetro fica entre 3,3 V e GND, com o cursor no PA0. O LED externo vai do PC7 ao GND passando por um resistor limitador.</p>
+
+<!-- ============================================================ -->
+<h2 id="cubemx"><span class="n">03</span>Criando o projeto no STM32CubeMX</h2>
+<p>O ponto de partida é o arquivo <code>trabalhoGA.ioc</code>. Ele é o "projeto" do STM32CubeMX: guarda a placa escolhida, os pinos, os relógios e as opções de geração de código. A partir dele o CubeMX escreve as pastas <code>Core/</code>, <code>Drivers/</code>, o <em>startup</em> em assembly, o script de linker e os arquivos CMake. A sequência usada foi esta:</p>
+
+<ol class="steps">
+  <li><div>
+    <h4>Escolher a placa no Board Selector</h4>
+    <p>Em <em>File → New Project</em>, aba <em>Board Selector</em>, foi escolhida a <strong>NUCLEO-F334R8</strong>. O <code>.ioc</code> registra isso em <code>board=NUCLEO-F334R8</code> e <code>Mcu.CPN=STM32F334R8T6</code> (encapsulamento LQFP64, 64 KB de flash, 12 KB de SRAM + 4 KB de CCM RAM).</p>
+    <p>Ao perguntar <em>"Initialize all peripherals with their default Mode?"</em>, a resposta foi <strong>sim</strong>. Por isso o projeto já nasce com a USART2 ligada ao ST-LINK (PA2/PA3), o LED LD2 no PA5, o botão B1 no PC13 e os pinos de depuração SWD. Todos esses pinos aparecem no <code>.ioc</code> com <code>Locked=true</code>, que é a marca de pinos pré-atribuídos pela placa.</p>
+  </div></li>
+  <li><div>
+    <h4>Configurar o sistema (SYS e RCC)</h4>
+    <p>Em <em>System Core → SYS</em>, o modo de depuração ficou em <strong>Serial Wire</strong> e a base de tempo da HAL em <strong>SysTick</strong> (<code>VP_SYS_VS_Systick.Mode=SysTick</code>). Em <em>RCC</em>, o CubeMX da Nucleo marca o HSE como <em>External Clock Source</em> (PF0) e o LSE como cristal (PC14/PC15), mas o código final usa só o oscilador interno HSI, como mostra o passo 6.</p>
+  </div></li>
+  <li><div>
+    <h4>Habilitar o I2C1</h4>
+    <p>Em <em>Connectivity → I2C1</em>, modo <strong>I2C</strong>. O CubeMX calculou o registrador de temporização <code>I2C1.Timing=0x00201D2B</code>, que com o relógio de 8 MHz do I2C resulta em cerca de <strong>100 kHz</strong> (modo padrão). O BH1750 aceita até 400 kHz, então 100 kHz é uma escolha segura.</p>
+    <p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">p. 2/17, Electrical Characteristics: I²C SCL Clock Frequency, máx. 400 kHz</a></p>
+  </div></li>
+  <li><div>
+    <h4>Manter a USART2 assíncrona</h4>
+    <p>Em <em>Connectivity → USART2</em>, modo <strong>Asynchronous</strong> (<code>USART2.VirtualMode-Asynchronous=VM_ASYNC</code>). Esse periférico não foi adicionado à mão: ele veio junto com a resposta "sim" do passo 1, porque na Nucleo a USART2 é a ligação serial com o ST-LINK. Os parâmetros 38400 baud, 8 bits, sem paridade e 1 stop bit são o padrão da placa e aparecem em <code>usart.c</code>. O firmware final não transmite nada por ela.</p>
+  </div></li>
+  <li><div>
+    <h4>Botão B1 com interrupção externa</h4>
+    <p>O PC13 foi mantido como <strong>GPIO_EXTI13</strong> com <code>GPIO_MODE_IT_FALLING</code>: o botão da Nucleo tem pull-up externo e vai a 0 V quando pressionado, então a borda de descida marca o aperto.</p>
+  </div></li>
+  <li><div>
+    <h4>Árvore de relógios (Clock Configuration)</h4>
+    <p>A fonte do PLL é o <strong>HSI de 8 MHz</strong>, que no STM32F334 entra no PLL dividido por 2. Com multiplicador ×16:</p>
+    <div class="block"><pre>HSI 8 MHz ─÷2─► 4 MHz ─×16 (PLLMUL)─► 64 MHz = SYSCLK
+SYSCLK ─÷1 (AHB)──► HCLK  64 MHz  (CPU, SysTick, ADC)
+HCLK   ─÷2 (APB1)─► PCLK1 32 MHz  (USART2, I2C1)  → timers do APB1: 64 MHz (TIM6)
+HCLK   ─÷1 (APB2)─► PCLK2 64 MHz
+I2C1 usa o HSI direto:  8 MHz</pre></div>
+    <p>Esses números estão no <code>.ioc</code> (<code>RCC.SYSCLKFreq_VALUE=64000000</code>, <code>RCC.APB1CLKDivider=RCC_HCLK_DIV2</code>, <code>RCC.I2C1Freq_Value=8000000</code>). A 64 MHz a flash precisa de 2 ciclos de espera (<code>FLASH_LATENCY_2</code>).</p>
+  </div></li>
+  <li><div>
+    <h4>Project Manager e geração do código</h4>
+    <p>Na aba <em>Project Manager</em>:</p>
+    <ul>
+      <li><strong>Project Name:</strong> <code>trabalhoGA</code>; <strong>Toolchain / IDE:</strong> <code>CMake</code> (<code>ProjectManager.TargetToolchain=CMake</code>);</li>
+      <li><strong>Firmware:</strong> STM32Cube FW_F3 V1.11.6, com cópia apenas das bibliotecas necessárias (<code>LibraryCopy=1</code>);</li>
+      <li><strong>Heap / Stack:</strong> 0x200 (512 B) e 0x400 (1 KB);</li>
+      <li>em <em>Code Generator</em>: <strong>"Generate peripheral initialization as a pair of .c/.h files per peripheral"</strong> (<code>CoupleFile=true</code>), que cria <code>gpio.c</code>, <code>i2c.c</code>, <code>usart.c</code> separados, e <strong>"Keep User Code when re-generating"</strong> (<code>KeepUserCode=true</code>).</li>
+    </ul>
+    <p>Depois disso, <em>GENERATE CODE</em>. A ordem das funções de inicialização em <code>main()</code> segue <code>ProjectManager.functionlistsort</code>: <code>SystemClock_Config</code>, <code>MX_GPIO_Init</code>, <code>MX_I2C1_Init</code>, <code>MX_USART2_UART_Init</code>.</p>
+  </div></li>
+  <li><div>
+    <h4>Periféricos adicionados à mão depois da geração</h4>
+    <p>O <code>.ioc</code> lista só <code>I2C1, NVIC, RCC, SYS, USART2</code>. O <strong>ADC1</strong>, o <strong>TIM6</strong> e o <strong>LED externo no PC7</strong> não foram configurados no CubeMX: os arquivos <code>adc.c/h</code> e <code>tim.c/h</code> foram escritos seguindo o mesmo padrão da HAL, e incluídos no build pelo <code>CMakeLists.txt</code> da raiz. Os módulos correspondentes da HAL (<code>HAL_ADC_MODULE_ENABLED</code> e <code>HAL_TIM_MODULE_ENABLED</code>) foram habilitados em <code>stm32f3xx_hal_conf.h</code>, e os fontes <code>stm32f3xx_hal_adc.c</code> e <code>stm32f3xx_hal_tim.c</code> constam na lista do <code>cmake/stm32cubemx/CMakeLists.txt</code>.</p>
+    <p>Os pinos do I2C também foram mudados à mão: o <code>.ioc</code> registra PA15 (SCL) e PB7 (SDA), mas <code>i2c.c</code> usa <strong>PB8 e PB9</strong>, que são os pinos D15/D14 do conector Arduino. A seção <a href="#atencao">Pontos de atenção</a> explica o que isso implica se o código for regerado.</p>
+  </div></li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="vscode"><span class="n">04</span>Abrindo e compilando no VS Code</h2>
+<p>O projeto usa a extensão <strong>STM32Cube for Visual Studio Code</strong>. O arquivo <code>.vscode/settings.json</code> mostra que o CMake é chamado pelo wrapper <code>cube-cmake</code>, o gerador é o <strong>Ninja</strong> e o IntelliSense usa o <code>starm-clangd</code> apontando para o compilador <code>gnu-tools-for-stm32 14.3.1</code>.</p>
+<ol class="steps">
+  <li><div><h4>Abrir a pasta</h4><p>Abrir a pasta <code>trabalhoGA</code> no VS Code. A extensão reconhece o <code>CMakeLists.txt</code> e o <code>CMakePresets.json</code>.</p></div></li>
+  <li><div><h4>Escolher o preset</h4><p>Selecionar o preset <strong>Debug</strong>. Ele usa <code>cmake/gcc-arm-none-eabi.cmake</code> como toolchain e gera a saída em <code>build/Debug</code>. O preset Release troca <code>-O0 -g3</code> por <code>-Os -g0</code>.</p></div></li>
+  <li><div><h4>Compilar</h4><p>O resultado é <code>trabalhoGA.elf</code> e um <code>trabalhoGA.map</code>. A flag <code>-Wl,--print-memory-usage</code> faz o linker imprimir quanto de FLASH e RAM foi usado.</p></div></li>
+  <li><div><h4>Gravar e depurar</h4><p>Com a Nucleo no USB, gravar e depurar pelo ST-LINK da própria placa. Para ver os valores medidos, adicionar <code>lux</code> e <code>lux_minima</code> à janela <em>Watch</em> do depurador.</p></div></li>
+</ol>
+
+<h3>O que os arquivos de build fazem</h3>
+<div class="walk">
+  <div class="walk-head"><span>cmake/gcc-arm-none-eabi.cmake</span><span class="tag gen">Gerado pelo CubeMX</span></div>
+  <div class="r"><span class="ln">1–2</span><pre><code>set(CMAKE_SYSTEM_NAME      Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)</code></pre><div><p>Diz ao CMake que o alvo não tem sistema operacional (bare-metal) e que a arquitetura é ARM. Isso é compilação cruzada: o programa é compilado no PC, mas roda no microcontrolador.</p></div></div>
+  <div class="r"><span class="ln">9–16</span><pre><code>set(TOOLCHAIN_PREFIX arm-none-eabi-)
+set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}gcc)
+...</code></pre><div><p>Escolhe o GCC para ARM (<code>arm-none-eabi-gcc</code>) como compilador de C e de assembly, e as ferramentas <code>objcopy</code> e <code>size</code> da mesma família.</p></div></div>
+  <div class="r"><span class="ln">25</span><pre><code>set(TARGET_FLAGS "-mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard ")</code></pre><div><p>Gera código para o Cortex-M4 e usa a <strong>FPU de precisão simples</strong> do chip. Com <code>-mfloat-abi=hard</code>, contas com <code>float</code> (como o cálculo de lux) viram instruções de hardware em vez de rotinas de software.</p></div></div>
+  <div class="r"><span class="ln">29</span><pre><code>-Wall -fdata-sections -ffunction-sections -fstack-usage</code></pre><div><p><code>-Wall</code> liga os avisos. As duas opções de <em>sections</em> colocam cada função e cada variável em uma seção própria, para que o linker possa descartar o que não é usado (<code>--gc-sections</code>). <code>-fstack-usage</code> gera arquivos <code>.su</code> com o uso de pilha de cada função.</p></div></div>
+  <div class="r"><span class="ln">43–46</span><pre><code>-T "STM32F334xx_FLASH.ld"
+--specs=nano.specs
+-Wl,-Map=trabalhoGA.map -Wl,--gc-sections
+-Wl,--print-memory-usage</code></pre><div><p>Usa o script de linker do chip, a biblioteca C reduzida <strong>newlib-nano</strong> (menor, adequada a 64 KB de flash), gera o mapa de memória, remove código morto e imprime o uso de memória no fim do build.</p></div></div>
+</div>
+
+<div class="walk">
+  <div class="walk-head"><span>CMakeLists.txt (raiz)</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">11–13</span><pre><code>set(CMAKE_C_STANDARD 11)</code></pre><div><p>Compila em C11 com extensões GNU. O código gerado exige pelo menos C11 (verificação no fim do <code>cmake/stm32cubemx/CMakeLists.txt</code>).</p></div></div>
+  <div class="r"><span class="ln">35–38</span><pre><code>add_executable(${CMAKE_PROJECT_NAME})
+add_subdirectory(cmake/stm32cubemx)</code></pre><div><p>Cria o executável <code>trabalhoGA</code> e inclui o subprojeto gerado pelo CubeMX, que adiciona <code>main.c</code>, <code>gpio.c</code>, <code>i2c.c</code>, <code>usart.c</code>, o startup e os drivers da HAL.</p></div></div>
+  <div class="r"><span class="ln">46–51</span><pre><code>target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    Core/Src/bh1750.c
+    Core/Src/tim.c
+    Core/Src/adc.c
+)</code></pre><div><p><strong>Única parte escrita à mão neste arquivo:</strong> acrescenta ao build os três fontes que não vieram do CubeMX. Este arquivo é gerado uma única vez e não é sobrescrito, por isso é o lugar certo para essa inclusão.</p></div></div>
+  <div class="r"><span class="ln">67–68</span><pre><code>target_link_libraries(${CMAKE_PROJECT_NAME} stm32cubemx)</code></pre><div><p>Liga a biblioteca de interface <code>stm32cubemx</code>, que carrega os caminhos de include e as macros <code>USE_HAL_DRIVER</code> e <code>STM32F334x8</code>. Essa segunda macro faz o <code>stm32f3xx.h</code> escolher os registradores corretos do chip.</p></div></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="arquivos"><span class="n">05</span>Estrutura de arquivos</h2>
+<div class="block files"><pre>trabalhoGA/
+├── trabalhoGA.ioc              <span class="d">configuração do CubeMX</span>
+├── CMakeLists.txt              <span class="d">build principal (inclui bh1750.c, tim.c, adc.c)</span>
+├── CMakePresets.json           <span class="d">presets Debug / Release</span>
+├── cmake/
+│   ├── gcc-arm-none-eabi.cmake <span class="d">toolchain e flags</span>
+│   └── stm32cubemx/CMakeLists.txt <span class="d">fontes e drivers gerados</span>
+├── startup_stm32f334x8.s       <span class="d">tabela de vetores e Reset_Handler</span>
+├── STM32F334xx_FLASH.ld        <span class="d">mapa de memória (linker)</span>
+├── Core/
+│   ├── Inc/  main.h  bh1750.h  adc.h  tim.h  i2c.h  usart.h  gpio.h
+│   │         stm32f3xx_hal_conf.h  stm32f3xx_it.h
+│   └── Src/  main.c            <span class="d">aplicação e máquina de estados</span>
+│             bh1750.c          <span class="d">driver do sensor de luz</span>
+│             adc.c  tim.c      <span class="d">ADC1 e TIM6 (escritos à mão)</span>
+│             i2c.c  usart.c  gpio.c
+│             stm32f3xx_it.c    <span class="d">rotinas de interrupção</span>
+│             stm32f3xx_hal_msp.c  system_stm32f3xx.c
+│             syscalls.c  sysmem.c  <span class="d">suporte à biblioteca C (gerados)</span>
+└── Drivers/  CMSIS + STM32F3xx_HAL_Driver</pre></div>
+<div class="tbl">
+<table>
+  <thead><tr><th>Arquivo</th><th>Origem</th><th>Papel</th></tr></thead>
+  <tbody>
+    <tr><td><code>main.c</code></td><td><span class="tag mix">Misto</span></td><td>Esqueleto gerado; tipos, estados, callbacks e laço escritos nos blocos <code>USER CODE</code>.</td></tr>
+    <tr><td><code>bh1750.c/h</code></td><td><span class="tag hand">Escrito à mão</span></td><td>Comandos e leitura do sensor.</td></tr>
+    <tr><td><code>adc.c/h</code>, <code>tim.c/h</code></td><td><span class="tag hand">Escrito à mão</span></td><td>Inicialização do ADC1 e do TIM6 no estilo da HAL.</td></tr>
+    <tr><td><code>gpio.c</code>, <code>main.h</code></td><td><span class="tag mix">Misto</span></td><td>GPIO gerado, mais o LED externo no PC7 e a habilitação da interrupção do botão.</td></tr>
+    <tr><td><code>i2c.c</code></td><td><span class="tag mix">Misto</span></td><td>I2C1 gerado, com os pinos trocados para PB8/PB9.</td></tr>
+    <tr><td><code>stm32f3xx_it.c</code></td><td><span class="tag mix">Misto</span></td><td>Handlers gerados, mais os handlers do EXTI15_10 e do TIM6.</td></tr>
+    <tr><td><code>usart.c</code>, <code>stm32f3xx_hal_msp.c</code>, <code>system_stm32f3xx.c</code>, <code>syscalls.c</code>, <code>sysmem.c</code>, startup, linker</td><td><span class="tag gen">Gerado pelo CubeMX</span></td><td>Infraestrutura sem alterações.</td></tr>
+  </tbody>
+</table>
+</div>
+<div class="note"><p><strong>Blocos USER CODE.</strong> O CubeMX marca trechos com <code>/* USER CODE BEGIN xxx */</code> e <code>/* USER CODE END xxx */</code>. Só o que está entre esses marcadores é preservado quando o código é regerado. Todo o resto do arquivo pertence à ferramenta.</p></div>
+
+<!-- ============================================================ -->
+<h2 id="reset"><span class="n">06</span>Do reset até o <code>main()</code></h2>
+<p>Quando a placa liga ou o botão de reset é solto, o Cortex-M4 lê as duas primeiras palavras da flash (endereço <code>0x08000000</code>): o valor inicial do ponteiro de pilha e o endereço do <code>Reset_Handler</code>. Essas palavras são a tabela de vetores definida em <code>startup_stm32f334x8.s</code>.</p>
+<div class="walk">
+  <div class="walk-head"><span>startup_stm32f334x8.s · Reset_Handler</span><span class="tag gen">Gerado pelo CubeMX</span></div>
+  <div class="r"><span class="ln">62</span><pre><code>ldr   sp, =_estack</code></pre><div><p>Coloca o ponteiro de pilha no fim da RAM. <code>_estack</code> é definido no script de linker (topo dos 12 KB de SRAM em <code>0x20000000</code>).</p></div></div>
+  <div class="r"><span class="ln">65</span><pre><code>bl  SystemInit</code></pre><div><p>Chama <code>SystemInit()</code> de <code>system_stm32f3xx.c</code>, que habilita a FPU (acesso aos coprocessadores CP10/CP11) e deixa o relógio no estado padrão (HSI 8 MHz).</p></div></div>
+  <div class="r"><span class="ln">68–82</span><pre><code>ldr r0, =_sdata
+ldr r1, =_edata
+ldr r2, =_sidata
+...
+CopyDataInit / LoopCopyDataInit</code></pre><div><p>Copia a seção <code>.data</code> da flash para a RAM. É assim que variáveis globais com valor inicial diferente de zero recebem esse valor antes do <code>main()</code>.</p></div></div>
+  <div class="r"><span class="ln">85–96</span><pre><code>ldr r2, =_sbss
+ldr r4, =_ebss
+...
+FillZerobss / LoopFillZerobss</code></pre><div><p>Zera a seção <code>.bss</code>. É por isso que <code>g_timerFlag</code>, <code>g_buttonFlag</code>, <code>lux</code> e <code>lux_minima</code> começam valendo zero.</p></div></div>
+  <div class="r"><span class="ln">99–101</span><pre><code>bl __libc_init_array
+bl main</code></pre><div><p>Executa os inicializadores da biblioteca C e, finalmente, salta para o <code>main()</code>.</p></div></div>
+</div>
+<p>O script <code>STM32F334xx_FLASH.ld</code> define as regiões de memória usadas acima:</p>
+<div class="block"><pre>RAM    (xrw) : ORIGIN = 0x20000000, LENGTH = 12K
+CCMRAM (xrw) : ORIGIN = 0x10000000, LENGTH = 4K
+FLASH  (rx)  : ORIGIN = 0x8000000,  LENGTH = 64K</pre></div>
+
+<!-- ============================================================ -->
+<h2 id="main"><span class="n">07</span><code>main.c</code> linha a linha</h2>
+<p>Os números de linha correspondem ao arquivo <code>Core/Src/main.c</code>. Linhas de comentário e marcadores <code>USER CODE</code> vazios são agrupadas.</p>
+
+<h3>Cabeçalho e includes</h3>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 1–30</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">1–18</span><pre><code><span class="c">/* USER CODE BEGIN Header */
+/** @file main.c ... Copyright (c) 2026 STMicroelectronics. */
+/* USER CODE END Header */</span></code></pre><div><p>Cabeçalho de licença padrão gerado pelo CubeMX.</p></div></div>
+  <div class="r"><span class="ln">20</span><pre><code>#include "main.h"</code></pre><div><p>Traz a HAL (<code>stm32f3xx_hal.h</code>), o protótipo de <code>Error_Handler()</code> e os nomes dos pinos (<code>B1_Pin</code>, <code>LED_EXT_Pin</code> etc.).</p></div></div>
+  <div class="r"><span class="ln">21–25</span><pre><code>#include "adc.h"
+#include "gpio.h"
+#include "i2c.h"
+#include "tim.h"
+#include "usart.h"</code></pre><div><p>Cabeçalhos de cada periférico. Declaram os <em>handles</em> globais (<code>hadc1</code>, <code>hi2c1</code>, <code>htim6</code>, <code>huart2</code>) e as funções <code>MX_xxx_Init()</code>. Os de GPIO, I2C e USART foram gerados pelo CubeMX; <code>adc.h</code> e <code>tim.h</code> foram escritos à mão.</p></div></div>
+  <div class="r"><span class="ln">29</span><pre><code>#include "bh1750.h"</code></pre><div><p>Driver do sensor de luz, escrito para este trabalho.</p></div></div>
+</div>
+
+<h3>Tipos da máquina de estados</h3>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 33–49</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">34–36</span><pre><code>typedef struct {
+  uint16_t manualCountdown;
+} Contexto;</code></pre><div><p>Estrutura com os dados que precisam sobreviver entre uma chamada de estado e outra. Aqui só guarda quantos <em>ticks</em> de 200 ms faltam para sair do modo manual. Passar um contexto por ponteiro evita criar mais variáveis globais e facilita acrescentar campos depois.</p></div></div>
+  <div class="r"><span class="ln">38–46</span><pre><code>typedef enum {
+  INIT,
+  AGUARDANDO,
+  MEDIR,
+  CLARO,
+  ESCURO,
+  MANUAL,
+  ERRO
+} EstadoID;</code></pre><div><p>Enumeração com os sete estados. O compilador numera de 0 a 6 na ordem escrita, e esses números servem como índices da tabela de estados.</p></div></div>
+  <div class="r"><span class="ln">48</span><pre><code>typedef EstadoID EstadoFunc(Contexto *ctx);</code></pre><div><p>Define um <strong>tipo de função</strong>: toda função de estado recebe um ponteiro para o contexto e devolve o <code>EstadoID</code> do próximo estado. Note que é um tipo de função, não de ponteiro; o ponteiro aparece depois, em <code>EstadoFunc *tabela_estados[]</code>.</p></div></div>
+</div>
+
+<h3>Constantes e variáveis globais</h3>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 52–73</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">53</span><pre><code>#define LUZ_MIN 10</code></pre><div><p>Limiar mínimo possível, em lux, quando o potenciômetro está todo para um lado (leitura 0).</p></div></div>
+  <div class="r"><span class="ln">54</span><pre><code>#define LUZ_MAX 500</code></pre><div><p>Limiar máximo, em lux, com o potenciômetro no outro extremo (leitura 4095). Para referência: um escritório iluminado fica em torno de 300 a 500 lux.</p></div></div>
+  <div class="r"><span class="ln">55</span><pre><code>#define MANUAL_TIMEOUT_TICKS 50 <span class="c">// 50 * 200ms = 10s</span></code></pre><div><p>Duração do modo manual contada em interrupções do TIM6. Como o timer dispara a cada 200 ms, 50 disparos dão 10 s.</p></div></div>
+  <div class="r"><span class="ln">66</span><pre><code>volatile uint8_t g_timerFlag = 0;</code></pre><div><p>Flag levantada pela interrupção do TIM6. O <code>volatile</code> obriga o compilador a ler a variável da memória toda vez, porque ela muda "por fora" do fluxo normal, dentro de uma interrupção. Sem ele, com otimização ligada, o laço poderia ler um valor antigo guardado em registrador.</p></div></div>
+  <div class="r"><span class="ln">67</span><pre><code>volatile uint8_t g_buttonFlag = 0;</code></pre><div><p>Flag levantada pela interrupção do botão B1, pelo mesmo motivo marcada como <code>volatile</code>.</p></div></div>
+  <div class="r"><span class="ln">68</span><pre><code>float lux = 0;</code></pre><div><p>Última luminosidade lida do BH1750, em lux.</p></div></div>
+  <div class="r"><span class="ln">69</span><pre><code>float lux_minima = 0;</code></pre><div><p>Limiar atual calculado a partir do potenciômetro. As duas ficam globais para que possam ser acompanhadas no depurador (janela <em>Watch</em>), já que o firmware não envia os valores para fora da placa.</p></div></div>
+  <div class="r"><span class="ln">73</span><pre><code>void SystemClock_Config(void);</code></pre><div><p>Protótipo gerado pelo CubeMX da função que configura os relógios, definida mais abaixo.</p></div></div>
+</div>
+
+<h3>As funções de estado</h3>
+<p>Cada função abaixo executa o trabalho de um estado e devolve qual é o próximo. Todas são <code>static</code>, ou seja, visíveis só dentro de <code>main.c</code>.</p>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 80–95</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">80–82</span><pre><code>static EstadoID init(Contexto *ctx) {
+  return AGUARDANDO;
+}</code></pre><div><p><strong>INIT</strong>: estado inicial, executado uma única vez. Não tem trabalho próprio, porque toda a preparação do hardware já foi feita em <code>main()</code>; apenas passa para AGUARDANDO. Mantê-lo na máquina deixa explícito o ponto de partida e reserva um lugar para uma inicialização futura.</p></div></div>
+  <div class="r"><span class="ln">84</span><pre><code>static EstadoID aguardando(Contexto *ctx) {</code></pre><div><p><strong>AGUARDANDO</strong>: estado ocioso. Verifica os eventos em ordem de prioridade: primeiro o botão, depois o timer.</p></div></div>
+  <div class="r"><span class="ln">85–86</span><pre><code>  if (g_buttonFlag) {
+    g_buttonFlag = 0;</code></pre><div><p>Se o botão foi pressionado, <strong>consome</strong> o evento zerando a flag, para que ele não seja tratado duas vezes.</p></div></div>
+  <div class="r"><span class="ln">87–88</span><pre><code>    ctx-&gt;manualCountdown = MANUAL_TIMEOUT_TICKS;
+    return MANUAL;</code></pre><div><p>Carrega o contador com 50 ticks e muda para MANUAL.</p></div></div>
+  <div class="r"><span class="ln">90–93</span><pre><code>  if (g_timerFlag) {
+    g_timerFlag = 0;
+    return MEDIR;
+  }</code></pre><div><p>Se passaram 200 ms desde a última medição, consome a flag do timer e vai medir.</p></div></div>
+  <div class="r"><span class="ln">94</span><pre><code>  return AGUARDANDO;</code></pre><div><p>Nenhum evento pendente: permanece em AGUARDANDO. O laço principal chama esta função de novo logo em seguida e confere as flags outra vez. Essa espera ativa (<em>polling</em> das flags) é a mesma técnica de monitoramento mostrada na Aula 3.</p></div></div>
+</div>
+
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 97–111 · MEDIR</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">98</span><pre><code>uint32_t potenciometro = 0;</code></pre><div><p>Variável local para a leitura bruta do ADC. Começa em 0 para ter um valor definido caso a conversão falhe.</p></div></div>
+  <div class="r"><span class="ln">99</span><pre><code>HAL_ADC_Start(&amp;hadc1);</code></pre><div><p>Liga o ADC1 e dispara uma conversão por software (o ADC foi configurado com <code>ADC_SOFTWARE_START</code>).</p></div></div>
+  <div class="r"><span class="ln">100–102</span><pre><code>if (HAL_ADC_PollForConversion(&amp;hadc1, 10) == HAL_OK) {
+  potenciometro = HAL_ADC_GetValue(&amp;hadc1);
+}</code></pre><div><p>Espera, por <em>polling</em>, a conversão terminar, com limite de 10 ms. Se terminou, lê o resultado de 12 bits (0 a 4095). A conversão real leva poucos microssegundos.</p></div></div>
+  <div class="r"><span class="ln">103</span><pre><code>HAL_ADC_Stop(&amp;hadc1);</code></pre><div><p>Desliga o ADC até a próxima medição.</p></div></div>
+  <div class="r"><span class="ln">104</span><pre><code>lux_minima = LUZ_MIN + (potenciometro / 4095.0f) * (LUZ_MAX - LUZ_MIN);</code></pre><div><p><strong>Mapeamento linear</strong> da leitura para o intervalo 10–500 lux. <code>potenciometro / 4095.0f</code> dá uma fração de 0 a 1; o sufixo <code>f</code> força conta em <code>float</code> (feita pela FPU) e evita divisão inteira, que daria sempre 0. Exemplo: leitura 2048 → 10 + 0,5 × 490 ≈ 255 lux.</p></div></div>
+  <div class="r"><span class="ln">106</span><pre><code>HAL_StatusTypeDef st_read = BH1750_ReadLux(&amp;hi2c1, &amp;lux);</code></pre><div><p>Lê o sensor. A função grava o resultado em <code>lux</code> (passado por ponteiro) e devolve o status da transação I²C.</p></div></div>
+  <div class="r"><span class="ln">107–109</span><pre><code>if (st_read != HAL_OK) {
+  return ERRO;
+}</code></pre><div><p>Se a comunicação com o sensor falhou (sensor desconectado, sem ACK no barramento), vai para ERRO. Nesse caso <code>lux</code> não é alterado e mantém o valor da última leitura válida.</p></div></div>
+  <div class="r"><span class="ln">110</span><pre><code>return (lux &lt; lux_minima) ? ESCURO : CLARO;</code></pre><div><p><strong>A decisão principal do sistema</strong>, escrita com o operador ternário: luz abaixo do limiar vai para ESCURO; caso contrário, CLARO.</p></div></div>
+</div>
+
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 113–146</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">113–116</span><pre><code>static EstadoID claro(Contexto *ctx) {
+  HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
+  return AGUARDANDO;
+}</code></pre><div><p><strong>CLARO</strong>: há luz suficiente, então o LED do PC7 é apagado (nível lógico 0) e o sistema volta a aguardar.</p></div></div>
+  <div class="r"><span class="ln">118–121</span><pre><code>static EstadoID escuro(Contexto *ctx) {
+  HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_SET);
+  return AGUARDANDO;
+}</code></pre><div><p><strong>ESCURO</strong>: o ambiente está abaixo do limiar, então o LED é aceso (nível lógico 1, 3,3 V).</p></div></div>
+  <div class="r"><span class="ln">123–125</span><pre><code>static EstadoID manual(Contexto *ctx) {
+  <span class="c">/* LED fixo aceso por 10s, sensor ignorado */</span>
+  HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_SET);</code></pre><div><p><strong>MANUAL</strong>: garante o LED aceso a cada passagem. Neste estado o sensor não é lido.</p></div></div>
+  <div class="r"><span class="ln">126–130</span><pre><code>  if (g_buttonFlag) {
+    g_buttonFlag = 0;
+    HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
+    return AGUARDANDO;
+  }</code></pre><div><p>Um novo aperto do botão cancela o modo manual: apaga o LED e volta ao modo automático.</p></div></div>
+  <div class="r"><span class="ln">131–133</span><pre><code>  if (g_timerFlag) {
+    g_timerFlag = 0;
+    ctx-&gt;manualCountdown--;</code></pre><div><p>A cada tick de 200 ms, desconta 1 do contador guardado no contexto.</p></div></div>
+  <div class="r"><span class="ln">134–137</span><pre><code>    if (ctx-&gt;manualCountdown == 0) {
+      HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
+      return AGUARDANDO;
+    }</code></pre><div><p>Quando o contador chega a zero (10 s depois), apaga o LED e volta ao modo automático. Na próxima medição o LED pode acender de novo se o ambiente estiver escuro.</p></div></div>
+  <div class="r"><span class="ln">138</span><pre><code>    return MANUAL;</code></pre><div><p>Ainda falta tempo: continua em MANUAL.</p></div></div>
+  <div class="r"><span class="ln">140</span><pre><code>  return MANUAL;</code></pre><div><p>Sem eventos, continua em MANUAL e confere as flags de novo na próxima volta do laço, como em AGUARDANDO.</p></div></div>
+  <div class="r"><span class="ln">143–146</span><pre><code>static EstadoID erro(Contexto *ctx) {
+  HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);
+  return AGUARDANDO;
+}</code></pre><div><p><strong>ERRO</strong>: apaga o LED (estado seguro) e volta a aguardar. A próxima tentativa acontece no tick seguinte, então o sistema se recupera sozinho se o sensor voltar a responder.</p></div></div>
+</div>
+
+<h3>A função <code>main()</code></h3>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 153–210</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">153</span><pre><code>int main(void) {</code></pre><div><p>Ponto de entrada chamado pelo <code>Reset_Handler</code>.</p></div></div>
+  <div class="r"><span class="ln">163</span><pre><code>HAL_Init();</code></pre><div><p><span class="tag gen">Gerado</span> Inicializa a HAL: liga o <em>prefetch</em> da flash, configura o SysTick para interromper a cada 1 ms (com o relógio de 8 MHz do reset) e chama <code>HAL_MspInit()</code>, que liga os relógios do SYSCFG e do PWR.</p></div></div>
+  <div class="r"><span class="ln">170</span><pre><code>SystemClock_Config();</code></pre><div><p><span class="tag gen">Gerado</span> Sobe o relógio para 64 MHz (detalhes abaixo). A HAL reajusta o SysTick automaticamente para continuar em 1 ms.</p></div></div>
+  <div class="r"><span class="ln">177</span><pre><code>MX_GPIO_Init();</code></pre><div><p><span class="tag gen">Gerado</span> Configura botão, LD2 e LED externo, e habilita a interrupção do botão.</p></div></div>
+  <div class="r"><span class="ln">178</span><pre><code>MX_I2C1_Init();</code></pre><div><p><span class="tag gen">Gerado</span> Configura o I2C1 a 100 kHz nos pinos PB8/PB9.</p></div></div>
+  <div class="r"><span class="ln">179</span><pre><code>MX_USART2_UART_Init();</code></pre><div><p><span class="tag gen">Gerado</span> Configura a USART2 a 38400 baud. Ela entrou no projeto porque a placa foi criada com os periféricos padrão da Nucleo (veja o <a href="#cubemx">passo 1 da seção 03</a>). O firmware atual não transmite nada por ela; veja a <a href="#uart">seção 13</a>.</p></div></div>
+  <div class="r"><span class="ln">180</span><pre><code>MX_TIM6_Init();</code></pre><div><p><span class="tag hand">À mão</span> Configura o TIM6 para gerar um evento a cada 200 ms (ainda parado).</p></div></div>
+  <div class="r"><span class="ln">181</span><pre><code>MX_ADC1_Init();</code></pre><div><p><span class="tag hand">À mão</span> Configura e calibra o ADC1 no canal do potenciômetro.</p></div></div>
+  <div class="r"><span class="ln">183</span><pre><code>HAL_StatusTypeDef st_power = BH1750_PowerOn(&amp;hi2c1);</code></pre><div><p>Tira o BH1750 do modo <em>power down</em> (comando <code>0x01</code>).</p></div></div>
+  <div class="r"><span class="ln">184</span><pre><code>HAL_StatusTypeDef st_mode = BH1750_SetMode(&amp;hi2c1, BH1750_MODE_CONTINUOUS_H_RES);</code></pre><div><p>Coloca o sensor em medição contínua de alta resolução (1 lux por contagem). A partir daqui o sensor fica medindo sozinho e sempre tem o valor mais recente pronto para leitura.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">p. 5/17, Instruction Set Architecture: Continuously H-Resolution Mode, 0001_0000</a></p></div></div>
+  <div class="r"><span class="ln">185</span><pre><code>HAL_Delay(180); <span class="c">// primeira conversão</span></code></pre><div><p>Espera 180 ms, o tempo máximo de uma conversão em alta resolução segundo o datasheet (típico de 120 ms). Assim a primeira leitura já tem um valor válido. <code>HAL_Delay</code> conta ticks do SysTick.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">p. 2/17, Measurement Time, H-Resolution Mode: típ. 120 ms, máx. 180 ms</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">p. 7/17, "Wait to complete 1st H-resolution mode measurement (max. 180ms)"</a></p></div></div>
+  <div class="r"><span class="ln">187</span><pre><code>HAL_TIM_Base_Start_IT(&amp;htim6);</code></pre><div><p>Liga o TIM6 com a interrupção de <em>update</em> habilitada. A partir deste ponto, <code>g_timerFlag</code> passa a ser levantada a cada 200 ms.</p></div></div>
+  <div class="r"><span class="ln">189</span><pre><code>Contexto ctx = {0};</code></pre><div><p>Cria o contexto na pilha com todos os campos zerados.</p></div></div>
+  <div class="r"><span class="ln">190</span><pre><code>EstadoID estadoAtual = INIT;</code></pre><div><p>O sistema começa no estado INIT.</p></div></div>
+  <div class="r"><span class="ln">192–197</span><pre><code>EstadoFunc *tabela_estados[] = {
+    [INIT] = init,     [AGUARDANDO] = aguardando,
+    [MEDIR] = medir,   [CLARO] = claro,
+    [ESCURO] = escuro, [MANUAL] = manual,
+    [ERRO] = erro,
+};</code></pre><div><p><strong>Tabela de estados</strong>: um vetor de ponteiros para função, indexado pelo <code>EstadoID</code>. A sintaxe <code>[INIT] = init</code> é o <em>inicializador designado</em> do C99: cada função fica na posição do seu estado, mesmo que a ordem do <code>enum</code> mude.</p></div></div>
+  <div class="r"><span class="ln">202</span><pre><code>while (1) {</code></pre><div><p>Laço infinito. Firmware bare-metal nunca retorna do <code>main()</code>.</p></div></div>
+  <div class="r"><span class="ln">204</span><pre><code>estadoAtual = tabela_estados[estadoAtual](&amp;ctx);</code></pre><div><p><strong>O motor da máquina de estados, em uma linha</strong>: busca na tabela a função do estado atual, chama passando o contexto e guarda o estado devolvido. Não existe <code>switch</code>: acrescentar um estado é acrescentar um valor no <code>enum</code>, uma função e uma entrada na tabela.</p></div></div>
+</div>
+
+<h3>Configuração do relógio</h3>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 216–251 · SystemClock_Config</span><span class="tag gen">Gerado pelo CubeMX</span></div>
+  <div class="r"><span class="ln">217–219</span><pre><code>RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};</code></pre><div><p>Três estruturas da HAL, zeradas, para descrever osciladores, barramentos e relógios de periféricos.</p></div></div>
+  <div class="r"><span class="ln">224–226</span><pre><code>OscillatorType = RCC_OSCILLATORTYPE_HSI;
+HSIState = RCC_HSI_ON;
+HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;</code></pre><div><p>Usa o oscilador RC interno de 8 MHz, com a calibração de fábrica.</p></div></div>
+  <div class="r"><span class="ln">227–229</span><pre><code>PLL.PLLState = RCC_PLL_ON;
+PLL.PLLSource = RCC_PLLSOURCE_HSI;
+PLL.PLLMUL = RCC_PLL_MUL16;</code></pre><div><p>Liga o PLL com entrada HSI/2 = 4 MHz e multiplica por 16, chegando a 64 MHz, a frequência máxima do STM32F334.</p></div></div>
+  <div class="r"><span class="ln">230–232</span><pre><code>if (HAL_RCC_OscConfig(&amp;RCC_OscInitStruct) != HAL_OK) {
+  Error_Handler();
+}</code></pre><div><p>Aplica a configuração e espera o PLL travar. Se falhar, para em <code>Error_Handler()</code>. Este padrão "chama, testa, trata erro" se repete em todas as inicializações.</p></div></div>
+  <div class="r"><span class="ln">236–237</span><pre><code>ClockType = HCLK | SYSCLK | PCLK1 | PCLK2;</code></pre><div><p>Indica quais relógios serão configurados na chamada seguinte.</p></div></div>
+  <div class="r"><span class="ln">238–241</span><pre><code>SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+AHBCLKDivider = RCC_SYSCLK_DIV1;
+APB1CLKDivider = RCC_HCLK_DIV2;
+APB2CLKDivider = RCC_HCLK_DIV1;</code></pre><div><p>O PLL passa a ser o relógio do sistema. O AHB fica em 64 MHz, o APB1 em 32 MHz (o limite do APB1 no F334 é 36 MHz, por isso a divisão) e o APB2 em 64 MHz.</p></div></div>
+  <div class="r"><span class="ln">243</span><pre><code>HAL_RCC_ClockConfig(&amp;RCC_ClkInitStruct, FLASH_LATENCY_2)</code></pre><div><p>Aplica os divisores e coloca 2 <em>wait states</em> na flash, necessários acima de 48 MHz.</p></div></div>
+  <div class="r"><span class="ln">246–248</span><pre><code>PeriphClockSelection = RCC_PERIPHCLK_I2C1;
+I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
+HAL_RCCEx_PeriphCLKConfig(&amp;PeriphClkInit)</code></pre><div><p>O I2C1 recebe o HSI de 8 MHz, independente do PLL. É sobre esse relógio que o valor <code>0x00201D2B</code> de temporização foi calculado.</p></div></div>
+</div>
+
+<h3>Callbacks de interrupção e tratamento de erro</h3>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/main.c · linhas 254–294</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">254–258</span><pre><code>void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+  if (htim-&gt;Instance == TIM6) {
+    g_timerFlag = 1;
+  }
+}</code></pre><div><p><span class="tag hand">À mão</span> A HAL chama esta função quando um timer estoura. Ela já existe na HAL como <em>weak</em>; definir de novo aqui substitui a versão vazia. O teste de <code>Instance</code> garante que só o TIM6 levanta a flag. A rotina é curta de propósito: dentro de uma interrupção não se faz comunicação I²C nem nada que precise esperar.</p></div></div>
+  <div class="r"><span class="ln">260–264</span><pre><code>void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == B1_Pin) {
+    g_buttonFlag = 1;
+  }
+}</code></pre><div><p><span class="tag hand">À mão</span> Chamada pela HAL na borda de descida do PC13. Só registra o evento para o laço principal.</p></div></div>
+  <div class="r"><span class="ln">271–278</span><pre><code>void Error_Handler(void) {
+  __disable_irq();
+  while (1) {
+  }
+}</code></pre><div><p><span class="tag gen">Gerado</span> Destino de qualquer falha de inicialização: desliga todas as interrupções e trava em um laço, o que facilita achar o problema no depurador.</p></div></div>
+  <div class="r"><span class="ln">279–294</span><pre><code>#ifdef USE_FULL_ASSERT
+void assert_failed(uint8_t *file, uint32_t line) { ... }
+#endif</code></pre><div><p><span class="tag gen">Gerado</span> Só é compilado se <code>USE_FULL_ASSERT</code> estiver definido. Nesse caso a HAL verificaria os parâmetros das suas funções e chamaria esta rotina ao encontrar um valor inválido. Neste projeto está desligado.</p></div></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="fsm"><span class="n">08</span>A máquina de estados</h2>
+<p>O diagrama mostra todos os estados e as condições de transição que aparecem no código.</p>
+<figure class="fig">
+<svg viewBox="0 0 760 340" role="img" aria-label="Diagrama de estados: INIT vai para AGUARDANDO. AGUARDANDO vai para MEDIR quando o timer dispara e para MANUAL quando o botão é pressionado. MEDIR vai para CLARO, ESCURO ou ERRO. CLARO, ESCURO e ERRO voltam para AGUARDANDO. MANUAL volta para AGUARDANDO pelo botão ou após 10 segundos.">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="ah" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <!-- arestas -->
+  <path class="edge" d="M120,182 L168,182" marker-end="url(#ah)"/>
+  <path class="edge" d="M232,160 C225,118 275,118 268,160" marker-end="url(#ah)"/>
+  <text class="et" x="250" y="112" text-anchor="middle">sem evento</text>
+  <path class="edge" d="M310,162 L398,92" marker-end="url(#ah)"/>
+  <text class="et" x="362" y="150">timer 200 ms</text>
+  <path class="edge" d="M520,74 L598,36" marker-end="url(#ah)"/>
+  <text class="et" x="540" y="44">lux ≥ mín</text>
+  <path class="edge" d="M520,86 L598,92" marker-end="url(#ah)"/>
+  <text class="et" x="545" y="80">lux &lt; mín</text>
+  <path class="edge" d="M520,98 L598,146" marker-end="url(#ah)"/>
+  <text class="et" x="462" y="132">falha I²C</text>
+  <path class="edge dash" d="M732,32 L748,32 L748,230 L290,230 L290,206" marker-end="url(#ah)"/>
+  <path class="edge dash" d="M732,92 L748,92"/>
+  <path class="edge dash" d="M732,152 L748,152"/>
+  <text class="et" x="515" y="246" text-anchor="middle">voltam para AGUARDANDO na mesma volta do laço</text>
+  <path class="edge" d="M230,204 L230,282 L398,282" marker-end="url(#ah)"/>
+  <text class="et" x="240" y="275">botão B1</text>
+  <path class="edge" d="M400,302 L200,302 L200,206" marker-end="url(#ah)"/>
+  <text class="et" x="210" y="320">botão B1 ou 50 ticks (10 s)</text>
+  <path class="edge" d="M540,282 C590,262 590,322 542,302" marker-end="url(#ah)"/>
+  <text class="et" x="594" y="296">tick: contador − 1</text>
+  <!-- nós -->
+  <rect class="box" x="20" y="160" width="100" height="44" rx="4"/><text class="lbl" x="70" y="186" text-anchor="middle">INIT</text>
+  <rect class="box hi" x="170" y="160" width="160" height="44" rx="4"/><text class="lbl" x="250" y="186" text-anchor="middle">AGUARDANDO</text>
+  <rect class="box" x="400" y="60" width="120" height="44" rx="4"/><text class="lbl" x="460" y="86" text-anchor="middle">MEDIR</text>
+  <rect class="box" x="600" y="10" width="132" height="44" rx="4"/><text class="lbl" x="666" y="36" text-anchor="middle">CLARO · LED off</text>
+  <rect class="box" x="600" y="70" width="132" height="44" rx="4"/><text class="lbl" x="666" y="96" text-anchor="middle">ESCURO · LED on</text>
+  <rect class="box" x="600" y="130" width="132" height="44" rx="4"/><text class="lbl" x="666" y="156" text-anchor="middle">ERRO · LED off</text>
+  <rect class="box" x="400" y="270" width="140" height="44" rx="4"/><text class="lbl" x="470" y="296" text-anchor="middle">MANUAL · LED on</text>
+</svg>
+<figcaption>Máquina de estados de <code>main.c</code>. AGUARDANDO, em destaque, é onde o sistema passa quase todo o tempo, conferindo as flags.</figcaption>
+</figure>
+
+<div class="tbl">
+<table>
+  <thead><tr><th>Estado</th><th>O que faz</th><th>Condição</th><th>Próximo estado</th></tr></thead>
+  <tbody>
+    <tr><td><code>INIT</code></td><td>Nenhuma ação; ponto de partida</td><td>sempre</td><td><code>AGUARDANDO</code></td></tr>
+    <tr><td rowspan="3"><code>AGUARDANDO</code></td><td rowspan="3">Verifica flags</td><td><code>g_buttonFlag</code></td><td><code>MANUAL</code> (contador = 50)</td></tr>
+    <tr><td><code>g_timerFlag</code></td><td><code>MEDIR</code></td></tr>
+    <tr><td>nenhuma flag</td><td><code>AGUARDANDO</code></td></tr>
+    <tr><td rowspan="3"><code>MEDIR</code></td><td rowspan="3">Lê ADC e BH1750, calcula o limiar</td><td>falha no I²C</td><td><code>ERRO</code></td></tr>
+    <tr><td><code>lux &lt; lux_minima</code></td><td><code>ESCURO</code></td></tr>
+    <tr><td><code>lux ≥ lux_minima</code></td><td><code>CLARO</code></td></tr>
+    <tr><td><code>CLARO</code></td><td>Apaga LED</td><td>sempre</td><td><code>AGUARDANDO</code></td></tr>
+    <tr><td><code>ESCURO</code></td><td>Acende LED</td><td>sempre</td><td><code>AGUARDANDO</code></td></tr>
+    <tr><td rowspan="4"><code>MANUAL</code></td><td rowspan="4">Mantém LED aceso; ignora sensor</td><td><code>g_buttonFlag</code></td><td><code>AGUARDANDO</code> (LED off)</td></tr>
+    <tr><td><code>g_timerFlag</code> e contador chega a 0</td><td><code>AGUARDANDO</code> (LED off)</td></tr>
+    <tr><td><code>g_timerFlag</code> e contador &gt; 0</td><td><code>MANUAL</code></td></tr>
+    <tr><td>nenhuma flag</td><td><code>MANUAL</code></td></tr>
+    <tr><td><code>ERRO</code></td><td>Apaga LED</td><td>sempre</td><td><code>AGUARDANDO</code></td></tr>
+  </tbody>
+</table>
+</div>
+<div class="note"><p><strong>Por que flags e não lógica na interrupção?</strong> A leitura do BH1750 usa I²C bloqueante: a função só retorna quando a transação termina. Fazer isso dentro de uma interrupção travaria as outras interrupções, inclusive o SysTick que conta o tempo dos próprios timeouts da HAL. Com flags, as interrupções duram poucos ciclos e todo o trabalho pesado fica no laço principal, onde pode ser interrompido.</p></div>
+
+<!-- ============================================================ -->
+<h2 id="bh1750"><span class="n">09</span>Driver do BH1750</h2>
+<p>O BH1750 é um sensor digital de luz ambiente que já entrega o valor pronto em lux por I²C. O driver tem só três funções, porque o sensor funciona por comandos de 1 byte.</p>
+<div class="note hand"><p><strong>Fonte dos dados.</strong> Todos os valores da biblioteca saíram do datasheet oficial da ROHM: <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf" target="_blank" rel="noopener"><em>BH1750FVI: Digital 16bit Serial Output Type Ambient Light Sensor IC</em>, Rev.D, 2011.11, 17 páginas</a> (cópia hospedada pela Mouser). Abaixo de cada linha do código há um selo <span class="ref-k">Datasheet</span> com links que abrem o PDF direto na página citada. O número de página é o impresso no rodapé do documento (por exemplo, "7/17").</p></div>
+<div class="walk">
+  <div class="walk-head"><span>Core/Inc/bh1750.h</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">1–2, 17</span><pre><code>#ifndef BH1750_H
+#define BH1750_H
+...
+#endif</code></pre><div><p><em>Include guard</em>: impede que o cabeçalho seja processado duas vezes se for incluído por mais de um arquivo.</p></div></div>
+  <div class="r"><span class="ln">4</span><pre><code>#include "stm32f3xx_hal.h"</code></pre><div><p>Traz os tipos <code>I2C_HandleTypeDef</code> e <code>HAL_StatusTypeDef</code> usados nos protótipos.</p></div></div>
+  <div class="r"><span class="ln">6</span><pre><code>#define BH1750_ADDR (0x23 &lt;&lt; 1)</code></pre><div><p>Com o pino ADDR em GND, o endereço de 7 bits do sensor é <code>0x23</code>. As funções I²C da HAL esperam o endereço já deslocado 1 bit para a esquerda (o bit 0 é o de leitura/escrita), então o valor efetivo é <code>0x46</code>.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">p. 10/17, "2) Slave Address": ADDR = 'L' → "0100011" (0x23); ADDR = 'H' → "1011100" (0x5C)</a></p></div></div>
+  <div class="r"><span class="ln">9–11</span><pre><code>#define BH1750_MODE_CONTINUOUS_H_RES  0x10
+#define BH1750_MODE_CONTINUOUS_H_RES2 0x11
+#define BH1750_MODE_CONTINUOUS_L_RES  0x13</code></pre><div><p>Códigos dos modos contínuos do datasheet: alta resolução (1 lx, ~120 ms), alta resolução 2 (0,5 lx, ~120 ms) e baixa resolução (4 lx, ~16 ms). O projeto usa o primeiro.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">p. 5/17, Instruction Set Architecture: 0001_0000, 0001_0001, 0001_0011</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">p. 5/17, Measurement mode explanation: 1 lx / 0,5 lx / 4 lx</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">p. 2/17, Measurement Time: tHR 120/180 ms, tLR 16/24 ms</a></p></div></div>
+  <div class="r"><span class="ln">13–15</span><pre><code>HAL_StatusTypeDef BH1750_PowerOn(...);
+HAL_StatusTypeDef BH1750_SetMode(...);
+HAL_StatusTypeDef BH1750_ReadLux(...);</code></pre><div><p>Protótipos públicos. Todas recebem o handle do I²C, o que permite usar o driver em outro barramento sem mudar o código, e devolvem o status da HAL.</p></div></div>
+</div>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/bh1750.c</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">3</span><pre><code>#define BH1750_CMD_POWER_ON 0x01</code></pre><div><p>Comando que tira o sensor do <em>power down</em>. Fica no <code>.c</code> porque só este arquivo o usa.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">p. 5/17, Instruction Set Architecture: Power On = 0000_0001</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=4" target="_blank" rel="noopener">p. 4/17, "Initial state is Power Down mode after VCC and DVI supply"</a></p></div></div>
+  <div class="r"><span class="ln">5–8</span><pre><code>HAL_StatusTypeDef BH1750_PowerOn(I2C_HandleTypeDef *hi2c) {
+    uint8_t cmd = BH1750_CMD_POWER_ON;
+    return HAL_I2C_Master_Transmit(hi2c, BH1750_ADDR, &amp;cmd, 1, HAL_MAX_DELAY);
+}</code></pre><div><p>Coloca o comando numa variável (a HAL precisa de um ponteiro para os dados) e envia 1 byte ao endereço do sensor. No barramento: START, endereço + W, byte <code>0x01</code>, STOP.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">p. 10/17, "3) Write Format": ST, Slave Address, R/W = 0, Ack, Opecode, Ack, SP</a></p></div></div>
+  <div class="r"><span class="ln">10–13</span><pre><code>HAL_StatusTypeDef BH1750_SetMode(I2C_HandleTypeDef *hi2c, uint8_t mode) {
+    return HAL_I2C_Master_Transmit(hi2c, BH1750_ADDR, &amp;mode, 1, HAL_MAX_DELAY);
+}</code></pre><div><p>Envia o código do modo. O próprio parâmetro <code>mode</code> serve como buffer. Receber esse comando já inicia a medição.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">p. 7/17, "Measurement sequence example": envio de 0100011 + 0 e depois 00010000</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">p. 5/17, Instruction Set Architecture: "Start measurement at 1lx resolution"</a></p></div></div>
+  <div class="r"><span class="ln">15–16</span><pre><code>HAL_StatusTypeDef BH1750_ReadLux(I2C_HandleTypeDef *hi2c, float *lux) {
+    uint8_t data[2];</code></pre><div><p>O resultado vem por ponteiro para que o retorno fique livre para o status. O sensor devolve 2 bytes.</p></div></div>
+  <div class="r"><span class="ln">17</span><pre><code>HAL_StatusTypeDef status = HAL_I2C_Master_Receive(hi2c, BH1750_ADDR, data, 2, HAL_MAX_DELAY);</code></pre><div><p>Lê 2 bytes: START, endereço + R, byte alto, ACK, byte baixo, NACK, STOP. No modo contínuo não é preciso mandar comando antes; o sensor sempre entrega a última medição.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">p. 10/17, "4) Read Format": Slave Address, R/W = 1, High Byte [15:8], Low Byte [7:0]</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">p. 7/17, "The result of continuously measurement mode is updated"</a></p></div></div>
+  <div class="r"><span class="ln">18–21</span><pre><code>if (status == HAL_OK) {
+    uint16_t raw = ((uint16_t)data[0] &lt;&lt; 8) | data[1];
+    *lux = raw / 1.2f;
+}</code></pre><div><p>Só converte se a leitura deu certo. Junta os bytes com o mais significativo primeiro (<em>big-endian</em>, como no datasheet): desloca o primeiro 8 bits e faz OU com o segundo. Depois divide por <strong>1,2</strong>, o fator de conversão do datasheet para o modo H-res com o tempo de medição padrão. Exemplo: bytes <code>0x01 0x2C</code> = 300 → 250 lux.</p><p class="ref"><span class="ref-k">Datasheet</span> <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">p. 7/17, exemplo "High Byte 10000011, Low Byte 10010000" → (2¹⁵+2⁹+2⁸+2⁷+2⁴) / 1,2 ≈ 28067 lx</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">p. 2/17, Measurement Accuracy (Sensor out / Actual lx): típ. 1,2</a> · <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=4" target="_blank" rel="noopener">p. 4/17, Measurement Time Register: valor inicial 0100_0101 (69)</a></p></div></div>
+  <div class="r"><span class="ln">22</span><pre><code>return status;</code></pre><div><p>Devolve o status para o estado MEDIR decidir se vai para ERRO.</p></div></div>
+</div>
+
+<h3>Rastreabilidade: código × datasheet</h3>
+<p>Resumo de onde saiu cada valor usado na biblioteca. Os links abrem o PDF na página indicada.</p>
+<div class="tbl">
+<table>
+  <thead><tr><th>Valor no código</th><th>Onde aparece</th><th>O que o datasheet diz</th><th>Página</th></tr></thead>
+  <tbody>
+    <tr><td><code>0x23</code></td><td><code>bh1750.h:6</code></td><td>Slave Address com ADDR = 'L': <code>0100011</code></td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">10/17</a></td></tr>
+    <tr><td><code>&lt;&lt; 1</code> (R/W no bit 0)</td><td><code>bh1750.h:6</code></td><td>Write/Read Format: 7 bits de endereço seguidos do bit R/W</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">10/17</a></td></tr>
+    <tr><td><code>0x01</code></td><td><code>bh1750.c:3</code></td><td>Instruction Set Architecture: Power On = <code>0000_0001</code></td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">5/17</a></td></tr>
+    <tr><td>Enviar Power On no boot</td><td><code>main.c:183</code></td><td>O estado inicial após a alimentação é Power Down</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=4" target="_blank" rel="noopener">4/17</a></td></tr>
+    <tr><td><code>0x10</code>, <code>0x11</code>, <code>0x13</code></td><td><code>bh1750.h:9-11</code></td><td>Continuously H-Res <code>0001_0000</code>, H-Res2 <code>0001_0001</code>, L-Res <code>0001_0011</code></td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">5/17</a></td></tr>
+    <tr><td>1 lx, 0,5 lx, 4 lx</td><td>comentários em <code>bh1750.h</code></td><td>Measurement mode explanation (resolução de cada modo)</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=5" target="_blank" rel="noopener">5/17</a></td></tr>
+    <tr><td><code>HAL_Delay(180)</code></td><td><code>main.c:185</code></td><td>tHR: típ. 120 ms, máx. 180 ms; "wait to complete 1st H-resolution mode measurement (max. 180ms)"</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">2/17</a>, <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">7/17</a></td></tr>
+    <tr><td>Leitura de 2 bytes</td><td><code>bh1750.c:17</code></td><td>Read Format: High Byte [15:8], depois Low Byte [7:0]</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=10" target="_blank" rel="noopener">10/17</a></td></tr>
+    <tr><td><code>(data[0] &lt;&lt; 8) | data[1]</code></td><td><code>bh1750.c:19</code></td><td>Byte alto primeiro (MSB), mesmo formato do exemplo de cálculo</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">7/17</a></td></tr>
+    <tr><td><code>/ 1.2f</code></td><td><code>bh1750.c:20</code></td><td>Exemplo de cálculo: contagem ÷ 1,2 = lux; Measurement Accuracy típ. 1,2</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=7" target="_blank" rel="noopener">7/17</a>, <a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">2/17</a></td></tr>
+    <tr><td>100 kHz no I²C</td><td><code>i2c.c:41</code></td><td>I²C SCL Clock Frequency: máx. 400 kHz</td><td class="num"><a href="https://www.mouser.com/datasheet/2/348/bh1750fvi-e-186247.pdf#page=2" target="_blank" rel="noopener">2/17</a></td></tr>
+  </tbody>
+</table>
+</div>
+<p class="ref" style="max-width:70ch">Os links usam <code>#page=N</code>, que os leitores de PDF do Chrome, do Edge e do Firefox entendem. Em outros leitores o PDF abre na primeira página; nesse caso, use o número indicado.</p>
+
+<!-- ============================================================ -->
+<h2 id="adc"><span class="n">10</span>ADC1 e potenciômetro</h2>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/adc.c</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">3</span><pre><code>ADC_HandleTypeDef hadc1;</code></pre><div><p>O <em>handle</em> do ADC1: estrutura da HAL que guarda a configuração e o estado do periférico. É declarado <code>extern</code> em <code>adc.h</code> para que <code>main.c</code> use o mesmo objeto.</p></div></div>
+  <div class="r"><span class="ln">8</span><pre><code>ADC_ChannelConfTypeDef sConfig = {0};</code></pre><div><p>Estrutura para configurar o canal de entrada.</p></div></div>
+  <div class="r"><span class="ln">10</span><pre><code>hadc1.Instance = ADC1;</code></pre><div><p>Liga o handle ao endereço dos registradores do ADC1.</p></div></div>
+  <div class="r"><span class="ln">11</span><pre><code>ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;</code></pre><div><p>Relógio síncrono derivado do barramento AHB dividido por 2: 64 / 2 = 32 MHz.</p></div></div>
+  <div class="r"><span class="ln">12</span><pre><code>Resolution = ADC_RESOLUTION_12B;</code></pre><div><p>12 bits: 4096 níveis entre 0 V e 3,3 V, cerca de 0,8 mV por passo.</p></div></div>
+  <div class="r"><span class="ln">13–15</span><pre><code>ScanConvMode = ADC_SCAN_DISABLE;
+ContinuousConvMode = DISABLE;
+DiscontinuousConvMode = DISABLE;</code></pre><div><p>Um único canal, uma conversão por disparo. O ADC não converte sozinho em sequência.</p></div></div>
+  <div class="r"><span class="ln">16–17</span><pre><code>ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+ExternalTrigConv = ADC_SOFTWARE_START;</code></pre><div><p>A conversão é iniciada pelo software (<code>HAL_ADC_Start</code>), não por um timer ou pino externo.</p></div></div>
+  <div class="r"><span class="ln">18</span><pre><code>DataAlign = ADC_DATAALIGN_RIGHT;</code></pre><div><p>Resultado alinhado à direita no registrador de 16 bits: o valor lido já vai de 0 a 4095.</p></div></div>
+  <div class="r"><span class="ln">19–21</span><pre><code>NbrOfConversion = 1;
+DMAContinuousRequests = DISABLE;
+EOCSelection = ADC_EOC_SINGLE_CONV;</code></pre><div><p>Uma conversão na sequência, sem DMA, e a flag de fim de conversão (EOC) é sinalizada ao final de cada conversão.</p></div></div>
+  <div class="r"><span class="ln">22–23</span><pre><code>LowPowerAutoWait = DISABLE;
+Overrun = ADC_OVR_DATA_PRESERVED;</code></pre><div><p>Sem espera automática. Se ocorrer <em>overrun</em>, mantém o dado antigo em vez de sobrescrever.</p></div></div>
+  <div class="r"><span class="ln">24–27</span><pre><code>if (HAL_ADC_Init(&amp;hadc1) != HAL_OK) {
+  Error_Handler();
+}</code></pre><div><p>Aplica a configuração. Internamente a HAL chama <code>HAL_ADC_MspInit</code> (linha 46) para ligar relógio e pino.</p></div></div>
+  <div class="r"><span class="ln">29</span><pre><code>sConfig.Channel = ADC_CHANNEL_1; <span class="c">/* PA0 (POT1) */</span></code></pre><div><p>No STM32F334, o canal 1 do ADC1 é o pino PA0.</p></div></div>
+  <div class="r"><span class="ln">30–31</span><pre><code>sConfig.Rank = ADC_REGULAR_RANK_1;
+sConfig.SingleDiff = ADC_SINGLE_ENDED;</code></pre><div><p>Primeiro (e único) canal da sequência, medido em relação ao GND (não diferencial).</p></div></div>
+  <div class="r"><span class="ln">32</span><pre><code>sConfig.SamplingTime = ADC_SAMPLETIME_61CYCLES_5;</code></pre><div><p>Tempo de amostragem de 61,5 ciclos. Um tempo maior deixa o capacitor interno carregar por completo mesmo com a impedância de um potenciômetro de alguns kΩ. Somando os 12,5 ciclos da conversão, são 74 ciclos a 32 MHz, cerca de 2,3 µs.</p></div></div>
+  <div class="r"><span class="ln">33–34</span><pre><code>sConfig.OffsetNumber = ADC_OFFSET_NONE;
+sConfig.Offset = 0;</code></pre><div><p>Sem subtração de offset por hardware.</p></div></div>
+  <div class="r"><span class="ln">35–38</span><pre><code>HAL_ADC_ConfigChannel(&amp;hadc1, &amp;sConfig)</code></pre><div><p>Aplica a configuração do canal.</p></div></div>
+  <div class="r"><span class="ln">40–43</span><pre><code>HAL_ADCEx_Calibration_Start(&amp;hadc1, ADC_SINGLE_ENDED)</code></pre><div><p>Executa a autocalibração do ADC para medições <em>single-ended</em>. No STM32F3 ela precisa ser feita com o ADC desligado, por isso fica no fim da inicialização, antes do primeiro <code>HAL_ADC_Start</code>.</p></div></div>
+  <div class="r"><span class="ln">46–61</span><pre><code>void HAL_ADC_MspInit(ADC_HandleTypeDef *adcHandle) {
+  ...
+  __HAL_RCC_ADC1_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &amp;GPIO_InitStruct);</code></pre><div><p><strong>MSP</strong> (MCU Support Package) é a parte dependente da placa: liga os relógios do ADC1 e da porta A e coloca o PA0 em modo analógico, sem pull-up nem pull-down, para não alterar a tensão medida.</p></div></div>
+  <div class="r"><span class="ln">63–70</span><pre><code>void HAL_ADC_MspDeInit(...) {
+  __HAL_RCC_ADC1_CLK_DISABLE();
+  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0);
+}</code></pre><div><p>O inverso, chamado por <code>HAL_ADC_DeInit</code>. Não é usado pelo programa, mas completa o padrão da HAL.</p></div></div>
+</div>
+<p><code>adc.h</code> só declara <code>extern ADC_HandleTypeDef hadc1;</code> e o protótipo <code>void MX_ADC1_Init(void);</code>, protegidos por include guard e por <code>extern "C"</code> para compatibilidade com C++.</p>
+
+<!-- ============================================================ -->
+<h2 id="tim"><span class="n">11</span>Timer TIM6: a base de tempo de 200 ms</h2>
+<p>O TIM6 é um timer básico de 16 bits do STM32F334. Ele só conta e gera um evento de <em>update</em> quando chega ao valor de recarga, que é exatamente o que um "metrônomo" precisa.</p>
+<div class="block"><pre>f_timer  = 64 MHz  (APB1 = 32 MHz; como o divisor do APB1 é 2, os timers recebem 2 × 32 MHz)
+f_contagem = 64 000 000 / (Prescaler + 1) = 64 000 000 / 64 000 = 1 000 Hz  → 1 ms por contagem
+T_update   = (Period + 1) / f_contagem   = 200 / 1 000       = 0,2 s     → 5 interrupções por segundo</pre></div>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/tim.c</span><span class="tag hand">Escrito à mão</span></div>
+  <div class="r"><span class="ln">3</span><pre><code>TIM_HandleTypeDef htim6;</code></pre><div><p>Handle global do TIM6, usado também em <code>stm32f3xx_it.c</code>.</p></div></div>
+  <div class="r"><span class="ln">8</span><pre><code>TIM_MasterConfigTypeDef sMasterConfig = {0};</code></pre><div><p>Estrutura para a configuração de "mestre" (saída de gatilho para outros periféricos).</p></div></div>
+  <div class="r"><span class="ln">10</span><pre><code>htim6.Instance = TIM6;</code></pre><div><p>Aponta para os registradores do TIM6.</p></div></div>
+  <div class="r"><span class="ln">11</span><pre><code>htim6.Init.Prescaler = 63999;</code></pre><div><p>O divisor efetivo é Prescaler + 1 = 64 000, levando os 64 MHz para 1 kHz.</p></div></div>
+  <div class="r"><span class="ln">12</span><pre><code>htim6.Init.CounterMode = TIM_COUNTERMODE_UP;</code></pre><div><p>Contagem crescente (o TIM6 só conta para cima).</p></div></div>
+  <div class="r"><span class="ln">13</span><pre><code>htim6.Init.Period = 199;</code></pre><div><p>Valor de recarga (registrador ARR). Conta de 0 a 199, ou seja, 200 contagens de 1 ms.</p></div></div>
+  <div class="r"><span class="ln">14</span><pre><code>AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;</code></pre><div><p>Uma escrita no ARR vale imediatamente. Como o período nunca muda, isso não faz diferença aqui.</p></div></div>
+  <div class="r"><span class="ln">15–18</span><pre><code>HAL_TIM_Base_Init(&amp;htim6)</code></pre><div><p>Aplica a configuração; chama <code>HAL_TIM_Base_MspInit</code>.</p></div></div>
+  <div class="r"><span class="ln">20–25</span><pre><code>MasterOutputTrigger = TIM_TRGO_RESET;
+MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+HAL_TIMEx_MasterConfigSynchronization(...)</code></pre><div><p>O TIM6 não dispara outros periféricos (poderia, por exemplo, disparar o DAC). Configuração padrão.</p></div></div>
+  <div class="r"><span class="ln">28–37</span><pre><code>void HAL_TIM_Base_MspInit(...) {
+  __HAL_RCC_TIM6_CLK_ENABLE();
+  HAL_NVIC_SetPriority(TIM6_DAC1_IRQn, 3, 0);
+  HAL_NVIC_EnableIRQ(TIM6_DAC1_IRQn);
+}</code></pre><div><p>Liga o relógio do TIM6 e habilita a sua interrupção no NVIC. No F334 o TIM6 divide o vetor de interrupção com o DAC1, daí o nome <code>TIM6_DAC1_IRQn</code>.</p></div></div>
+  <div class="r"><span class="ln">39–46</span><pre><code>void HAL_TIM_Base_MspDeInit(...) { ... }</code></pre><div><p>Desliga relógio e interrupção. Não é usado pelo programa.</p></div></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="i2c"><span class="n">12</span>I2C1</h2>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/i2c.c</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">27</span><pre><code>I2C_HandleTypeDef hi2c1;</code></pre><div><p>Handle global do I2C1, passado para o driver do BH1750.</p></div></div>
+  <div class="r"><span class="ln">40</span><pre><code>hi2c1.Instance = I2C1;</code></pre><div><p>Registradores do I2C1.</p></div></div>
+  <div class="r"><span class="ln">41</span><pre><code>hi2c1.Init.Timing = 0x00201D2B;</code></pre><div><p>Valor do registrador TIMINGR calculado pelo CubeMX para 100 kHz com relógio de 8 MHz. Campos: PRESC = 0 (125 ns por passo), SCLDEL = 2, SDADEL = 0, SCLH = 0x1D (30 passos = 3,75 µs em nível alto) e SCLL = 0x2B (44 passos = 5,5 µs em nível baixo).</p></div></div>
+  <div class="r"><span class="ln">42–46</span><pre><code>OwnAddress1 = 0;
+AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+DualAddressMode = I2C_DUALADDRESS_DISABLE;
+OwnAddress2 = 0;
+OwnAddress2Masks = I2C_OA2_NOMASK;</code></pre><div><p>O STM32 atua só como mestre, então os endereços próprios não importam. Endereçamento de 7 bits, que é o do BH1750.</p></div></div>
+  <div class="r"><span class="ln">47–48</span><pre><code>GeneralCallMode = I2C_GENERALCALL_DISABLE;
+NoStretchMode = I2C_NOSTRETCH_DISABLE;</code></pre><div><p>Sem <em>general call</em>; <em>clock stretching</em> permitido, como manda o padrão I²C.</p></div></div>
+  <div class="r"><span class="ln">49–52</span><pre><code>HAL_I2C_Init(&amp;hi2c1)</code></pre><div><p>Aplica a configuração e chama <code>HAL_I2C_MspInit</code>.</p></div></div>
+  <div class="r"><span class="ln">56, 63</span><pre><code>HAL_I2CEx_ConfigAnalogFilter(&amp;hi2c1, I2C_ANALOGFILTER_ENABLE)
+HAL_I2CEx_ConfigDigitalFilter(&amp;hi2c1, 0)</code></pre><div><p>Liga o filtro analógico, que rejeita pulsos de ruído abaixo de ~50 ns nas linhas, e deixa o filtro digital desligado.</p></div></div>
+  <div class="r"><span class="ln">83</span><pre><code>__HAL_RCC_GPIOB_CLK_ENABLE();</code></pre><div><p>Liga o relógio da porta B, onde estão os pinos do barramento.</p></div></div>
+  <div class="r"><span class="ln">88</span><pre><code>GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;</code></pre><div><p><span class="tag hand">Alterado à mão</span> PB8 = SCL, PB9 = SDA. São os pinos D15 e D14 do conector Arduino da Nucleo, fáceis de ligar ao módulo.</p></div></div>
+  <div class="r"><span class="ln">89</span><pre><code>GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;</code></pre><div><p>Função alternativa em <strong>dreno aberto</strong>. No I²C os dispositivos só puxam a linha para 0; o nível 1 vem dos resistores de pull-up. Isso permite vários dispositivos no mesmo fio sem curto.</p></div></div>
+  <div class="r"><span class="ln">90–92</span><pre><code>Pull = GPIO_NOPULL;
+Speed = GPIO_SPEED_FREQ_HIGH;
+Alternate = GPIO_AF4_I2C1;</code></pre><div><p>Sem pull-up interno (o módulo já tem os seus), bordas rápidas, e AF4 conecta os pinos ao I2C1.</p></div></div>
+  <div class="r"><span class="ln">96</span><pre><code>__HAL_RCC_I2C1_CLK_ENABLE();</code></pre><div><p>Liga o relógio do periférico I2C1.</p></div></div>
+  <div class="r"><span class="ln">103–124</span><pre><code>void HAL_I2C_MspDeInit(...) { ... }</code></pre><div><p>Desfaz a inicialização. Não é usado pelo programa.</p></div></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="uart"><span class="n">13</span>USART2</h2>
+<p>A USART2 foi gerada pelo CubeMX junto com os periféricos padrão da Nucleo. Na placa ela é ligada ao ST-LINK, que a apresenta ao PC como uma porta COM pelo mesmo cabo USB. O firmware atual <strong>inicializa</strong> a USART2, mas <strong>não envia nem recebe</strong> nada por ela: nenhuma função da aplicação usa <code>huart2</code>. O código de configuração é explicado abaixo porque continua sendo compilado e executado no boot.</p>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/usart.c</span><span class="tag gen">Gerado pelo CubeMX</span></div>
+  <div class="r"><span class="ln">27</span><pre><code>UART_HandleTypeDef huart2;</code></pre><div><p>Handle global da USART2. É declarado <code>extern</code> em <code>usart.h</code>, mas hoje só é usado pela própria inicialização.</p></div></div>
+  <div class="r"><span class="ln">41–42</span><pre><code>huart2.Instance = USART2;
+huart2.Init.BaudRate = 38400;</code></pre><div><p>USART2 a 38400 bits por segundo, a velocidade padrão da porta COM virtual da Nucleo.</p></div></div>
+  <div class="r"><span class="ln">43–45</span><pre><code>WordLength = UART_WORDLENGTH_8B;
+StopBits = UART_STOPBITS_1;
+Parity = UART_PARITY_NONE;</code></pre><div><p>Formato <strong>8N1</strong>: 8 bits de dados, sem paridade, 1 stop bit. Cada caractere ocupa 10 bits, então cabem 3840 caracteres por segundo.</p></div></div>
+  <div class="r"><span class="ln">46–47</span><pre><code>Mode = UART_MODE_TX_RX;
+HwFlowCtl = UART_HWCONTROL_NONE;</code></pre><div><p>Transmissão e recepção habilitadas, sem controle de fluxo RTS/CTS.</p></div></div>
+  <div class="r"><span class="ln">48–50</span><pre><code>OverSampling = UART_OVERSAMPLING_16;
+OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;</code></pre><div><p>Cada bit é amostrado 16 vezes (mais tolerante a ruído), com votação de 3 amostras, e sem recursos avançados como inversão de pinos.</p></div></div>
+  <div class="r"><span class="ln">71–83</span><pre><code>__HAL_RCC_USART2_CLK_ENABLE();
+__HAL_RCC_GPIOA_CLK_ENABLE();
+GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
+GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+GPIO_InitStruct.Alternate = GPIO_AF7_USART2;</code></pre><div><p>No MSP: liga os relógios, coloca PA2 e PA3 em função alternativa push-pull e escolhe AF7, que conecta esses pinos à USART2.</p></div></div>
+</div>
+<div class="note"><p><strong>Remover ou usar a USART2.</strong> Como a USART2 está no <code>.ioc</code>, apagar a chamada <code>MX_USART2_UART_Init()</code> à mão faria o CubeMX recolocá-la na próxima geração de código. Para retirá-la de vez, é preciso desativar a USART2 no CubeMX. Mantê-la não atrapalha e permite, no futuro, enviar dados ao PC com <code>HAL_UART_Transmit(&amp;huart2, ...)</code>.</p></div>
+
+<!-- ============================================================ -->
+<h2 id="gpio"><span class="n">14</span>GPIO e botão</h2>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/gpio.c · MX_GPIO_Init</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">45</span><pre><code>GPIO_InitTypeDef GPIO_InitStruct = {0};</code></pre><div><p>Estrutura reaproveitada para configurar cada pino.</p></div></div>
+  <div class="r"><span class="ln">48–51</span><pre><code>__HAL_RCC_GPIOC_CLK_ENABLE();
+__HAL_RCC_GPIOF_CLK_ENABLE();
+__HAL_RCC_GPIOA_CLK_ENABLE();
+__HAL_RCC_GPIOB_CLK_ENABLE();</code></pre><div><p>No STM32 todo periférico começa sem relógio para economizar energia. Um registrador de GPIO só pode ser escrito depois que a porta recebe relógio.</p></div></div>
+  <div class="r"><span class="ln">54</span><pre><code>HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);</code></pre><div><p>Define o nível inicial do LD2 como 0 <em>antes</em> de o pino virar saída, evitando um pulso no LED durante a inicialização.</p></div></div>
+  <div class="r"><span class="ln">57</span><pre><code>HAL_GPIO_WritePin(LED_EXT_GPIO_Port, LED_EXT_Pin, GPIO_PIN_RESET);</code></pre><div><p><span class="tag hand">À mão</span> O mesmo para o LED externo no PC7: começa apagado.</p></div></div>
+  <div class="r"><span class="ln">60–63</span><pre><code>GPIO_InitStruct.Pin = B1_Pin;
+GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+GPIO_InitStruct.Pull = GPIO_NOPULL;
+HAL_GPIO_Init(B1_GPIO_Port, &amp;GPIO_InitStruct);</code></pre><div><p>PC13 como entrada com interrupção na borda de descida. A HAL também configura o SYSCFG para ligar a linha EXTI13 à porta C. Sem pull interno porque a placa já tem pull-up externo no botão.</p></div></div>
+  <div class="r"><span class="ln">66–70</span><pre><code>GPIO_InitStruct.Pin = LD2_Pin;
+GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+HAL_GPIO_Init(LD2_GPIO_Port, &amp;GPIO_InitStruct);</code></pre><div><p>PA5 como saída <strong>push-pull</strong> (o pino fornece tanto 0 V quanto 3,3 V) em velocidade baixa, suficiente para um LED e com menos ruído eletromagnético.</p></div></div>
+  <div class="r"><span class="ln">73–77</span><pre><code>GPIO_InitStruct.Pin = LED_EXT_Pin;
+GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+...
+HAL_GPIO_Init(LED_EXT_GPIO_Port, &amp;GPIO_InitStruct);</code></pre><div><p><span class="tag hand">À mão</span> PC7 configurado igual ao LD2. Os nomes <code>LED_EXT_Pin</code> e <code>LED_EXT_GPIO_Port</code> ficam em <code>main.h</code>, dentro do bloco <code>USER CODE BEGIN Private defines</code>.</p></div></div>
+  <div class="r"><span class="ln">80–81</span><pre><code>HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
+HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);</code></pre><div><p><span class="tag hand">À mão</span> Habilita no NVIC a interrupção compartilhada pelas linhas EXTI 10 a 15, onde está a linha 13 do botão. Sem esta linha a borda seria detectada, mas o processador nunca seria interrompido.</p></div></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="irq"><span class="n">15</span>Interrupções: do hardware até a flag</h2>
+<p>Quando o botão é pressionado ou o TIM6 estoura, o hardware consulta a tabela de vetores do startup e salta para um <em>handler</em> com nome fixo. Esses handlers estão em <code>stm32f3xx_it.c</code> e repassam o trabalho para a HAL, que limpa a flag do periférico e chama o <em>callback</em> definido em <code>main.c</code>.</p>
+<div class="block"><pre>Botão B1 (PC13, borda de descida)
+  └─► EXTI15_10_IRQHandler()            <span class="c">stm32f3xx_it.c</span>
+        └─► HAL_GPIO_EXTI_IRQHandler(B1_Pin)   <span class="c">limpa o bit pendente da linha 13</span>
+              └─► HAL_GPIO_EXTI_Callback(B1_Pin)  <span class="c">main.c → g_buttonFlag = 1</span>
+
+TIM6 chega a 199 → update
+  └─► TIM6_DAC1_IRQHandler()
+        └─► HAL_TIM_IRQHandler(&amp;htim6)        <span class="c">confere e limpa a flag UIF</span>
+              └─► HAL_TIM_PeriodElapsedCallback(&amp;htim6)  <span class="c">main.c → g_timerFlag = 1</span>
+
+SysTick (a cada 1 ms)
+  └─► SysTick_Handler() ─► HAL_IncTick()   <span class="c">uwTick++ (usado por HAL_Delay e timeouts)</span></pre></div>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/stm32f3xx_it.c</span><span class="tag mix">Misto</span></div>
+  <div class="r"><span class="ln">25</span><pre><code>#include "tim.h"</code></pre><div><p><span class="tag hand">À mão</span> Necessário para enxergar <code>htim6</code> no handler do timer.</p></div></div>
+  <div class="r"><span class="ln">70–140</span><pre><code>NMI_Handler, HardFault_Handler, MemManage_Handler,
+BusFault_Handler, UsageFault_Handler</code></pre><div><p><span class="tag gen">Gerado</span> Exceções de falha do Cortex-M4. Todas travam em <code>while (1)</code>. Um acesso a endereço inválido, por exemplo, termina em <code>HardFault_Handler</code>, onde o depurador para.</p></div></div>
+  <div class="r"><span class="ln">145–179</span><pre><code>SVC_Handler, DebugMon_Handler, PendSV_Handler</code></pre><div><p><span class="tag gen">Gerado</span> Vazios. São usados por sistemas operacionais de tempo real, que este projeto não tem.</p></div></div>
+  <div class="r"><span class="ln">184–193</span><pre><code>void SysTick_Handler(void) {
+  HAL_IncTick();
+}</code></pre><div><p><span class="tag gen">Gerado</span> Incrementa o contador de milissegundos da HAL, usado por <code>HAL_Delay()</code> e pelos timeouts das funções de I²C e ADC.</p></div></div>
+  <div class="r"><span class="ln">205–208</span><pre><code>void EXTI15_10_IRQHandler(void) {
+  HAL_GPIO_EXTI_IRQHandler(B1_Pin);
+}</code></pre><div><p><span class="tag hand">À mão</span> O nome precisa ser exatamente igual ao da tabela de vetores do startup. Se estiver diferente, a interrupção cai no <code>Default_Handler</code> e o programa trava.</p></div></div>
+  <div class="r"><span class="ln">213–216</span><pre><code>void TIM6_DAC1_IRQHandler(void) {
+  HAL_TIM_IRQHandler(&amp;htim6);
+}</code></pre><div><p><span class="tag hand">À mão</span> Handler do TIM6. A HAL descobre qual evento ocorreu (aqui, sempre o <em>update</em>) e chama o callback correspondente.</p></div></div>
+</div>
+<div class="walk">
+  <div class="walk-head"><span>Core/Src/stm32f3xx_hal_msp.c · HAL_MspInit</span><span class="tag gen">Gerado pelo CubeMX</span></div>
+  <div class="r"><span class="ln">69–70</span><pre><code>__HAL_RCC_SYSCFG_CLK_ENABLE();
+__HAL_RCC_PWR_CLK_ENABLE();</code></pre><div><p>Liga o SYSCFG (necessário para rotear o PC13 à linha EXTI13) e o controle de energia.</p></div></div>
+  <div class="r"><span class="ln">72</span><pre><code>HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_0);</code></pre><div><p>Define como os 4 bits de prioridade do NVIC são divididos: grupo 0 significa 0 bits de preempção e 4 de subprioridade. Com isso, nenhuma interrupção interrompe outra; elas apenas são atendidas em ordem.</p></div></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="execucao"><span class="n">16</span>Uma execução completa</h2>
+<p>Linha do tempo de uma sessão típica, supondo o potenciômetro no meio (limiar ≈ 255 lux) e uma sala com 312 lux em que alguém cobre o sensor.</p>
+<ol class="timeline">
+  <li><span class="t">0 ms</span><span>Reset. O startup copia <code>.data</code>, zera <code>.bss</code> e chama <code>main()</code>. HAL, relógio a 64 MHz e periféricos são inicializados.</span></li>
+  <li><span class="t">≈ 1 ms</span><span>O BH1750 recebe <code>0x01</code> e <code>0x10</code> pelo I²C e começa a medir.</span></li>
+  <li><span class="t">≈ 181 ms</span><span>Termina o <code>HAL_Delay(180)</code>. O TIM6 é ligado. O laço executa INIT e entra em AGUARDANDO.</span></li>
+  <li><span class="t">≈ 381 ms</span><span>Primeira interrupção do TIM6. MEDIR lê ADC ≈ 2048 (<code>lux_minima</code> ≈ 255) e BH1750 = 312 lux. Como 312 ≥ 255, vai para CLARO: LED apagado.</span></li>
+  <li><span class="t">a cada 200 ms</span><span>O ciclo AGUARDANDO → MEDIR → CLARO/ESCURO → AGUARDANDO se repete. Entre medições o laço fica conferindo as flags.</span></li>
+  <li><span class="t">t = 5,0 s</span><span>O sensor é coberto. A medição seguinte dá, por exemplo, 40 lux. Como 40 &lt; 255, vai para ESCURO: LED aceso.</span></li>
+  <li><span class="t">t = 6,3 s</span><span>Botão B1 pressionado. A ISR levanta <code>g_buttonFlag</code>; AGUARDANDO consome a flag e entra em MANUAL com contador 50. O LED acende.</span></li>
+  <li><span class="t">t = 16,3 s</span><span>Após 50 ticks o contador zera: LED apagado, volta para AGUARDANDO. Na próxima medição o LED volta a seguir o sensor.</span></li>
+</ol>
+<p>Valores que aparecem na janela <em>Watch</em> do depurador ao longo dessa sessão:</p>
+<div class="tbl">
+<table>
+  <thead><tr><th>Momento</th><th><code>lux</code></th><th><code>lux_minima</code></th><th>Estado</th><th>LED (PC7)</th></tr></thead>
+  <tbody>
+    <tr><td>Sala iluminada</td><td class="num">312.5</td><td class="num">255.0</td><td><code>CLARO</code></td><td>apagado</td></tr>
+    <tr><td>Sensor coberto</td><td class="num">40.0</td><td class="num">255.0</td><td><code>ESCURO</code></td><td>aceso</td></tr>
+    <tr><td>Botão B1</td><td class="num">40.0</td><td class="num">255.0</td><td><code>MANUAL</code></td><td>aceso por 10 s</td></tr>
+    <tr><td>Fim dos 10 s</td><td class="num">41.7</td><td class="num">255.0</td><td><code>ESCURO</code></td><td>aceso (voltou a seguir o sensor)</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="atencao"><span class="n">17</span>Pontos de atenção</h2>
+<p>Observações encontradas na leitura do código, úteis para a apresentação ou para uma próxima versão.</p>
+
+<div class="note warn">
+  <p><strong>O .ioc não representa todo o hardware.</strong> O ADC1, o TIM6 e o LED no PC7 não estão no <code>trabalhoGA.ioc</code>, e o I2C1 está registrado em PA15/PB7, enquanto o código usa PB8/PB9. Várias alterações manuais ficaram fora dos blocos <code>USER CODE</code>: o LED_EXT e a habilitação do EXTI15_10 em <code>gpio.c</code>, os pinos em <code>i2c.c</code>, as chamadas <code>MX_TIM6_Init()</code> e <code>MX_ADC1_Init()</code> em <code>main()</code> e os handlers em <code>stm32f3xx_it.c</code>. Se o projeto for aberto no CubeMX e o código for regerado, essas partes serão sobrescritas. Para evitar isso, basta configurar no CubeMX o ADC1 (IN1), o TIM6 com a interrupção ligada, o PC7 como GPIO_Output com rótulo <code>LED_EXT</code>, o I2C1 em PB8/PB9 e a interrupção EXTI15_10 no NVIC.</p>
+</div>
+
+<div class="note">
+  <p><strong>Prioridades do NVIC.</strong> O código pede prioridade 2 para o botão e 3 para o timer, mas com <code>NVIC_PRIORITYGROUP_0</code> não há bits de preempção, e a HAL descarta esses valores ao codificar a prioridade. Na prática todas as interrupções ficam com a mesma prioridade. Aqui isso não causa problema, porque os handlers só escrevem uma flag.</p>
+</div>
+
+<div class="note">
+  <p><strong>Botão sem debounce.</strong> Um botão mecânico gera vários pulsos ao ser pressionado. Como a flag é só um bit, pulsos seguidos se juntam em um evento, mas um repique que chegue logo depois de o estado consumir a flag pode ser visto como um segundo aperto e cancelar o modo manual na hora. Uma melhoria simples é ignorar novas bordas por uns 50 ms, comparando <code>HAL_GetTick()</code> no callback.</p>
+</div>
+
+<div class="note">
+  <p><strong>Outros detalhes menores.</strong></p>
+  <ul>
+    <li><code>st_power</code> e <code>st_mode</code> são atribuídas e nunca testadas. Com <code>-Wall</code> o compilador avisa "unused variable". Verificar esses status permitiria detectar o sensor desconectado já no boot.</li>
+    <li>O LED LD2 (PA5) é configurado, mas não é usado. Poderia indicar o modo manual ou um erro, que hoje não têm nenhum sinal visível além do LED externo.</li>
+  </ul>
+</div>
+
+<footer>
+  <p>Documento sobre o projeto <code>trabalhoGA</code> (Sistemas Embarcados, UNISINOS). Números de linha referentes à versão sem <code>printf</code> (alterações feitas após o commit <code>52bf882</code>).</p>
+</footer>
+</main>
+</div>
+</body>
+</html>
